@@ -273,8 +273,29 @@
 
 ## 6 法律和合规性
 
+
 ## 7 开发团队
 <p style="text-indent:2em">我们开发团队共有三名成员，具体成员和分工名单详见表1。</p>
+
+<style>
+.center 
+{
+  width: auto;
+  display: table;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+<p align="center">表1 示例表格</p>
+<div class="center">
+
+| 姓名  |   职责    |        分工        |
+|:---:|:-------:|:----------------:|
+| 姜涛  |  项目组长   | 视觉感知设计与合规统筹，代码实现 |
+| 叶子洲 |   负责人   | 执行引擎与系统安全设计，代码实现 |
+| 秦雨芊 |   负责人   | 推理引擎与接口开发设计，代码实现 |
+
+</div>
 
 
 ## 8 风险评估
