@@ -1,0 +1,30 @@
+@startuml Common
+!pragma encoding utf-8
+' 共享样式和参与者定义
+
+' 样式定义
+skinparam backgroundColor white
+skinparam handwritten false
+skinparam sequenceArrowThickness 2
+skinparam sequenceParticipant underline
+
+' 颜色定义
+!define USER_COLOR #E2F0D9
+!define VISUAL_COLOR #FFE699
+!define TASK_COLOR #BDD7EE
+!define OPERATION_COLOR #F8CBAD
+!define SECURITY_COLOR #D9D9D9
+
+' 参与者定义
+actor "用户" as User USER_COLOR
+
+box "Trustee系统" #F5F5F5
+boundary "用户交互层" as UI USER_COLOR
+control "视觉感知层" as Visual VISUAL_COLOR
+entity "任务理解层" as Task TASK_COLOR
+control "操作执行层" as Operation OPERATION_COLOR
+database "安全控制层" as Security SECURITY_COLOR
+collections "Windows系统" as Windows
+end box
+
+@enduml 
