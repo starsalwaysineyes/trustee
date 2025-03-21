@@ -1,0 +1,21 @@
+@startuml Learning_Optimization_Phase
+!pragma encoding utf-8
+' 学习与优化阶段时序图
+
+' 包含共享样式和参与者定义
+!include common.puml
+
+title "Trustee系统 - 学习与优化阶段"
+
+== "学习与优化阶段" ==
+User -> UI: "提供任务执行反馈"
+activate UI
+UI -> Task: "更新任务知识库"
+activate Task
+Task -> Task: "优化任务执行策略"
+Task --> UI: "知识库更新完成"
+deactivate Task
+UI --> User: "确认优化完成"
+deactivate UI
+
+@enduml 

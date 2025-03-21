@@ -1,0 +1,32 @@
+@startuml Initialization_Phase
+!pragma encoding utf-8
+' 初始化阶段时序图
+
+' 包含共享样式和参与者定义
+!include common.puml
+
+title "Trustee系统 - 初始化阶段"
+
+== "初始化阶段" ==
+User -> UI: "启动系统"
+activate UI
+UI -> Security: "验证用户权限"
+activate Security
+Security --> UI: "权限验证通过"
+deactivate Security
+UI -> Visual: "初始化视觉模型"
+activate Visual
+Visual --> UI: "视觉模型就绪"
+deactivate Visual
+UI -> Task: "初始化任务推理系统"
+activate Task
+Task --> UI: "任务推理系统就绪"
+deactivate Task
+UI -> Operation: "初始化操作执行模块"
+activate Operation
+Operation --> UI: "操作执行模块就绪"
+deactivate Operation
+UI --> User: "系统准备就绪"
+deactivate UI
+
+@enduml 

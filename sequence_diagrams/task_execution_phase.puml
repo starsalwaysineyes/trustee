@@ -1,0 +1,73 @@
+@startuml Task_Execution_Phase
+!pragma encoding utf-8
+' 任务执行阶段时序图
+
+' 包含共享样式和参与者定义
+!include common.puml
+
+title "Trustee系统 - 任务执行阶段"
+
+== "任务执行阶段" ==
+User -> UI: "输入自然语言指令"
+activate UI
+UI -> Task: "解析用户指令"
+activate Task
+Task -> Task: "任务分解与规划"
+Task --> UI: "返回任务执行计划"
+deactivate Task
+
+UI -> Security: "检查操作权限"
+activate Security
+Security --> UI: "权限验证通过"
+deactivate Security
+
+UI -> Visual: "捕获当前屏幕状态"
+activate Visual
+Visual -> Visual: "识别UI元素和文本"
+Visual --> UI: "返回屏幕分析结果"
+deactivate Visual
+
+UI -> Task: "结合屏幕状态细化任务"
+activate Task
+Task -> Task: "生成具体操作序列"
+Task --> UI: "返回操作序列"
+deactivate Task
+
+UI -> Operation: "执行操作序列"
+activate Operation
+Operation -> Windows: "调用Win32 API"
+activate Windows
+Windows --> Operation: "API执行结果"
+deactivate Windows
+Operation -> Operation: "验证操作结果"
+Operation --> UI: "操作执行状态"
+deactivate Operation
+
+UI -> Visual: "捕获执行后屏幕状态"
+activate Visual
+Visual -> Visual: "分析执行结果"
+Visual --> UI: "返回执行结果分析"
+deactivate Visual
+
+UI -> Task: "评估任务完成情况"
+activate Task
+Task -> Task: "判断是否需要调整策略"
+alt "任务未完成"
+    Task -> Task: "调整执行策略"
+    Task --> UI: "返回调整后的操作序列"
+    UI -> Operation: "继续执行调整后的操作"
+else "任务已完成"
+    Task --> UI: "任务完成确认"
+end
+deactivate Task
+
+UI -> Security: "记录操作日志"
+activate Security
+Security -> Security: "存储审计信息"
+Security --> UI: "日志记录完成"
+deactivate Security
+
+UI --> User: "展示任务执行结果"
+deactivate UI
+
+@enduml 

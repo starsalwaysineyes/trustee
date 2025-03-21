@@ -1,0 +1,35 @@
+@startuml Exception_Handling_Phase
+!pragma encoding utf-8
+' 异常处理阶段时序图
+
+' 包含共享样式和参与者定义
+!include common.puml
+
+title "Trustee系统 - 异常处理阶段"
+
+== "异常处理阶段" ==
+alt "执行过程中出现异常"
+    Operation -> UI: "报告异常情况"
+    activate UI
+    UI -> Task: "请求异常处理策略"
+    activate Task
+    Task -> Task: "生成异常处理方案"
+    Task --> UI: "返回处理方案"
+    deactivate Task
+    
+    UI -> Security: "检查异常处理权限"
+    activate Security
+    Security --> UI: "权限验证通过"
+    deactivate Security
+    
+    UI -> Operation: "执行异常处理操作"
+    activate Operation
+    Operation -> Windows: "调用恢复操作API"
+    Operation --> UI: "异常处理结果"
+    deactivate Operation
+    
+    UI --> User: "通知用户异常情况和处理结果"
+    deactivate UI
+end
+
+@enduml 
