@@ -1,0 +1,135 @@
+@startuml Complete_Sequence
+!pragma encoding utf-8
+' Trustee系统完整业务流程时序图
+
+' 包含共享样式和参与者定义
+!include common.puml
+
+title "Trustee系统 - 完整业务流程时序图"
+
+' 初始化阶段
+== "初始化阶段" ==
+User -> UI: "启动系统"
+activate UI
+UI -> Security: "验证用户权限"
+activate Security
+Security --> UI: "权限验证通过"
+deactivate Security
+UI -> Visual: "初始化视觉模型"
+activate Visual
+Visual --> UI: "视觉模型就绪"
+deactivate Visual
+UI -> Task: "初始化任务推理系统"
+activate Task
+Task --> UI: "任务推理系统就绪"
+deactivate Task
+UI -> Operation: "初始化操作执行模块"
+activate Operation
+Operation --> UI: "操作执行模块就绪"
+deactivate Operation
+UI --> User: "系统准备就绪"
+deactivate UI
+
+' 任务执行阶段
+== "任务执行阶段" ==
+User -> UI: "输入自然语言指令"
+activate UI
+UI -> Task: "解析用户指令"
+activate Task
+Task -> Task: "任务分解与规划"
+Task --> UI: "返回任务执行计划"
+deactivate Task
+
+UI -> Security: "检查操作权限"
+activate Security
+Security --> UI: "权限验证通过"
+deactivate Security
+
+UI -> Visual: "捕获当前屏幕状态"
+activate Visual
+Visual -> Visual: "识别UI元素和文本"
+Visual --> UI: "返回屏幕分析结果"
+deactivate Visual
+
+UI -> Task: "结合屏幕状态细化任务"
+activate Task
+Task -> Task: "生成具体操作序列"
+Task --> UI: "返回操作序列"
+deactivate Task
+
+UI -> Operation: "执行操作序列"
+activate Operation
+Operation -> Windows: "调用Win32 API"
+activate Windows
+Windows --> Operation: "API执行结果"
+deactivate Windows
+Operation -> Operation: "验证操作结果"
+Operation --> UI: "操作执行状态"
+deactivate Operation
+
+UI -> Visual: "捕获执行后屏幕状态"
+activate Visual
+Visual -> Visual: "分析执行结果"
+Visual --> UI: "返回执行结果分析"
+deactivate Visual
+
+UI -> Task: "评估任务完成情况"
+activate Task
+Task -> Task: "判断是否需要调整策略"
+alt "任务未完成"
+    Task -> Task: "调整执行策略"
+    Task --> UI: "返回调整后的操作序列"
+    UI -> Operation: "继续执行调整后的操作"
+else "任务已完成"
+    Task --> UI: "任务完成确认"
+end
+deactivate Task
+
+UI -> Security: "记录操作日志"
+activate Security
+Security -> Security: "存储审计信息"
+Security --> UI: "日志记录完成"
+deactivate Security
+
+UI --> User: "展示任务执行结果"
+deactivate UI
+
+' 异常处理阶段
+== "异常处理阶段" ==
+alt "执行过程中出现异常"
+    Operation -> UI: "报告异常情况"
+    activate UI
+    UI -> Task: "请求异常处理策略"
+    activate Task
+    Task -> Task: "生成异常处理方案"
+    Task --> UI: "返回处理方案"
+    deactivate Task
+    
+    UI -> Security: "检查异常处理权限"
+    activate Security
+    Security --> UI: "权限验证通过"
+    deactivate Security
+    
+    UI -> Operation: "执行异常处理操作"
+    activate Operation
+    Operation -> Windows: "调用恢复操作API"
+    Operation --> UI: "异常处理结果"
+    deactivate Operation
+    
+    UI --> User: "通知用户异常情况和处理结果"
+    deactivate UI
+end
+
+' 学习与优化阶段
+== "学习与优化阶段" ==
+User -> UI: "提供任务执行反馈"
+activate UI
+UI -> Task: "更新任务知识库"
+activate Task
+Task -> Task: "优化任务执行策略"
+Task --> UI: "知识库更新完成"
+deactivate Task
+UI --> User: "确认优化完成"
+deactivate UI
+
+@enduml 
