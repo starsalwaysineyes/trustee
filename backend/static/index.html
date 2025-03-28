@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trustee系统 - 任务执行界面</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .input-section {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+        }
+        .result-section {
+            margin-bottom: 15px;
+        }
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .result-content {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .success {
+            color: #4CAF50;
+        }
+        .error {
+            color: #f44336;
+        }
+        .loading {
+            text-align: center;
+            margin: 20px 0;
+            display: none;
+        }
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Trustee系统 - 任务执行界面</h1>
+        
+        <div class="input-section">
+            <label for="instruction">请输入自然语言指令：</label>
+            <input type="text" id="instruction" placeholder="例如：打开记事本并输入文本'你好世界'">
+            <button id="submit-btn">执行任务</button>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="loading-spinner"></div>
+            <p>正在执行任务，请稍候...</p>
+        </div>
+        
+        <div id="result" style="display: none;">
+            <div class="result-section">
+                <div class="result-title">任务执行状态：</div>
+                <div id="status" class="result-content"></div>
+            </div>
+            
+            <div class="result-section">
+                <div class="result-title">任务计划：</div>
+                <div id="task-plan" class="result-content"></div>
+            </div>
+            
+            <div class="result-section">
+                <div class="result-title">执行详情：</div>
+                <div id="execution-details" class="result-content"></div>
+            </div>
+            
+            <div class="result-section">
+                <div class="result-title">视觉反馈：</div>
+                <div id="visual-feedback" class="result-content"></div>
+            </div>
+            
+            <div class="input-section">
+                <label for="feedback">提供反馈（帮助系统学习）：</label>
+                <input type="text" id="feedback" placeholder="输入您对执行结果的反馈">
+                <button id="feedback-btn">提交反馈</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentSessionId = null;
+        
+        // 提交任务
+        document.getElementById('submit-btn').addEventListener('click', async function() {
+            const instruction = document.getElementById('instruction').value.trim();
+            
+            if (!instruction) {
+                alert('请输入指令！');
+                return;
+            }
+            
+            // 显示加载状态
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('result').style.display = 'none';
+            
+            try {
+                const response = await fetch('/api/task/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        instruction: instruction,
+                        session_id: currentSessionId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // 隐藏加载状态，显示结果
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').style.display = 'block';
+                
+                // 保存会话ID
+                currentSessionId = data.session_id;
+                
+                // 显示任务执行状态
+                const statusElement = document.getElementById('status');
+                if (data.success) {
+                    statusElement.innerHTML = `<span class="success">✓ ${data.message}</span>`;
+                    if (data.task_completed) {
+                        statusElement.innerHTML += '<br><span class="success">✓ 任务已完成</span>';
+                    } else {
+                        statusElement.innerHTML += '<br><span class="error">✗ 任务未完成</span>';
+                    }
+                } else {
+                    statusElement.innerHTML = `<span class="error">✗ ${data.message}</span>`;
+                }
+                
+                // 显示任务计划
+                if (data.result && data.result.task_plan) {
+                    document.getElementById('task-plan').textContent = JSON.stringify(data.result.task_plan, null, 2);
+                }
+                
+                // 显示执行详情
+                if (data.result && data.result.execution_result) {
+                    document.getElementById('execution-details').textContent = JSON.stringify(data.result.execution_result, null, 2);
+                }
+                
+                // 显示视觉反馈
+                if (data.result && data.result.screen_analysis) {
+                    document.getElementById('visual-feedback').textContent = JSON.stringify(data.result.screen_analysis, null, 2);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('status').innerHTML = `<span class="error">✗ 请求失败: ${error.message}</span>`;
+            }
+        });
+        
+        // 提交反馈
+        document.getElementById('feedback-btn').addEventListener('click', async function() {
+            const feedback = document.getElementById('feedback').value.trim();
+            
+            if (!feedback) {
+                alert('请输入反馈内容！');
+                return;
+            }
+            
+            if (!currentSessionId) {
+                alert('没有活动的会话！');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        session_id: currentSessionId,
+                        feedback: feedback
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('反馈已提交，谢谢！');
+                    document.getElementById('feedback').value = '';
+                } else {
+                    alert(`提交失败: ${data.message}`);
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`提交失败: ${error.message}`);
+            }
+        });
+    </script>
+</body>
+</html> 
