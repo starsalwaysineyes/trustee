@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}创建新任务{% endblock %}
+
+{% block header %}
+<div class="bg-blue-600 p-6">
+    <div class="flex items-center">
+        <a href="{{ url_for('task_list') }}" class="mr-2">
+            <span class="material-icons text-white">arrow_back</span>
+        </a>
+        <h1 class="text-xl font-bold text-white">创建新任务</h1>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="p-4">
+    <form action="#" method="post"> <!-- Add actual action later -->
+        <div class="space-y-4">
+            <div>
+                <label for="task-name" class="block text-sm font-medium text-gray-700 mb-1">任务名称</label>
+                <input type="text" id="task-name" name="task_name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="输入任务名称">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">任务类型</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <label class="border border-blue-500 bg-blue-50 p-3 rounded-lg flex flex-col items-center cursor-pointer">
+                        <input type="radio" name="task_type" value="timed" class="hidden peer" checked>
+                        <span class="material-icons text-blue-600 mb-1">schedule</span>
+                        <span class="text-sm peer-checked:font-semibold">定时任务</span>
+                    </label>
+                    <label class="border border-gray-300 p-3 rounded-lg flex flex-col items-center cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                        <input type="radio" name="task_type" value="periodic" class="hidden peer">
+                        <span class="material-icons text-gray-600 mb-1 peer-checked:text-blue-600">autorenew</span>
+                        <span class="text-sm peer-checked:font-semibold">周期任务</span>
+                    </label>
+                    <label class="border border-gray-300 p-3 rounded-lg flex flex-col items-center cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                        <input type="radio" name="task_type" value="script" class="hidden peer">
+                        <span class="material-icons text-gray-600 mb-1 peer-checked:text-blue-600">code</span>
+                        <span class="text-sm peer-checked:font-semibold">脚本任务</span>
+                    </label>
+                    <label class="border border-gray-300 p-3 rounded-lg flex flex-col items-center cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-50">
+                        <input type="radio" name="task_type" value="api" class="hidden peer">
+                        <span class="material-icons text-gray-600 mb-1 peer-checked:text-blue-600">api</span>
+                        <span class="text-sm peer-checked:font-semibold">API调用</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div>
+                <label for="task-date" class="block text-sm font-medium text-gray-700 mb-1">执行时间</label>
+                <div class="flex space-x-3">
+                    <input type="date" id="task-date" name="task_date" class="flex-1 p-3 border border-gray-300 rounded-lg">
+                    <input type="time" id="task-time" name="task_time" class="flex-1 p-3 border border-gray-300 rounded-lg">
+                </div>
+            </div>
+            
+            <div>
+                <label for="task-description" class="block text-sm font-medium text-gray-700 mb-1">任务描述</label>
+                <textarea id="task-description" name="task_description" class="w-full p-3 border border-gray-300 rounded-lg h-20" placeholder="输入任务描述或指令"></textarea>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">执行参数</label>
+                <div class="p-3 border border-gray-300 rounded-lg space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-700">关闭所有应用</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="param_close_apps" value="true" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm text-gray-700">执行前提醒</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" name="param_notify" value="true" class="sr-only peer" checked>
+                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8">
+            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium">创建任务</button>
+        </div>
+    </form>
+</div>
+{% endblock %} 

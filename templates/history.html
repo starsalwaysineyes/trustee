@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}历史记录{% endblock %}
+
+{% block header %}
+<div class="bg-blue-600 p-6">
+    <h1 class="text-2xl font-bold text-white">历史记录</h1>
+    <div class="flex items-center mt-2">
+        <div class="bg-blue-500 p-1 rounded-full mr-2">
+            <span class="material-icons text-white text-sm">computer</span>
+        </div>
+         <!-- Assuming the first connected device is the active one -->
+         {% set active_device = devices|selectattr('connected', 'equalto', true)|first %}
+         <p class="text-blue-100 text-sm">
+             {{ active_device.name if active_device else '未连接设备' }} - {{ '已连接' if active_device else '未连接' }}
+         </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="p-4">
+    <div class="flex space-x-2 mb-4 overflow-x-auto pb-2">
+        <button class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm whitespace-nowrap">全部记录</button>
+        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">定时任务</button>
+        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">周期任务</button>
+        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">脚本任务</button>
+    </div>
+    
+    <div class="mb-4">
+        <div class="relative">
+            <input type="text" class="w-full p-3 pl-10 border border-gray-300 rounded-lg" placeholder="搜索历史记录">
+            <span class="material-icons absolute left-3 top-3 text-gray-400">search</span>
+        </div>
+    </div>
+    
+    <div class="space-y-1">
+        {% for group in history %}
+        <div class="bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500 sticky top-0 z-5">
+            {{ group.group }}
+        </div>
+        
+        <div class="space-y-2 pb-2">
+            {% for item in group.items %}
+            <div class="p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
+                <div class="flex justify-between">
+                    <div>
+                        <h3 class="font-medium">{{ item.name }}</h3>
+                        <p class="text-xs text-gray-500 mt-0.5">{{ item.time }}</p>
+                    </div>
+                    <span class="px-2 py-0.5 bg-{{ item.status_color }}-100 text-{{ item.status_color }}-800 text-xs rounded-full h-fit whitespace-nowrap">{{ item.status }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+         <p class="text-gray-500 text-sm">暂无历史记录。</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %} 

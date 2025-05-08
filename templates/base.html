@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trustee - {{ title | default('远程任务管理') }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /* Limit width and height for mobile screen simulation */
+        body {
+            background-color: #f3f4f6; /* bg-gray-100 */
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align to top */
+            min-height: 100vh;
+            padding-top: 2rem; /* Add some top padding */
+            padding-bottom: 2rem; /* Add some bottom padding */
+        }
+        .screen {
+            max-width: 24rem; /* max-w-md, approx 384px */
+            width: 100%;
+            height: 50.75rem; /* h-[812px] */
+            background-color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+            display: flex;
+            flex-direction: column;
+        }
+        .content-area {
+            flex-grow: 1;
+            overflow-y: auto; /* Allow content scrolling */
+            padding-bottom: 60px; /* Space for bottom nav */
+        }
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            border-top: 1px solid #e5e7eb; /* border-gray-200 */
+            background-color: white;
+            padding-top: 0.75rem; /* py-3 */
+            padding-bottom: 0.75rem; /* py-3 */
+            padding-left: 1rem; /* px-4 */
+            padding-right: 1rem; /* px-4 */
+            z-index: 10;
+        }
+
+        /* Helper to visually identify pages */
+        /* You can remove this later */
+        /* body > .screen::before {
+            content: "{{ self._TemplateReference__context.name|replace('.html','')|capitalize }}";
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: rgba(0,0,0,0.1);
+            padding: 2px 5px;
+            font-size: 10px;
+            border-radius: 3px;
+            z-index: 100;
+        } */
+    </style>
+</head>
+<body>
+    <div class="screen">
+        {% block header %}{% endblock %}
+
+        <div class="content-area">
+            {% block content %}{% endblock %}
+        </div>
+
+        <div class="bottom-nav">
+            <div class="flex justify-around">
+                <a href="{{ url_for('device_list') }}" class="flex flex-col items-center {% if current_page == 'devices' %}text-blue-600{% else %}text-gray-400{% endif %}">
+                    <span class="material-icons">devices</span>
+                    <span class="text-xs mt-1">设备</span>
+                </a>
+                <a href="{{ url_for('task_list') }}" class="flex flex-col items-center {% if current_page == 'tasks' %}text-blue-600{% else %}text-gray-400{% endif %}">
+                    <span class="material-icons">assignment</span>
+                    <span class="text-xs mt-1">任务</span>
+                </a>
+                <a href="{{ url_for('history_list') }}" class="flex flex-col items-center {% if current_page == 'history' %}text-blue-600{% else %}text-gray-400{% endif %}">
+                    <span class="material-icons">history</span>
+                    <span class="text-xs mt-1">历史</span>
+                </a>
+                <button class="flex flex-col items-center text-gray-400"> <!-- Settings page not implemented yet -->
+                    <span class="material-icons">settings</span>
+                    <span class="text-xs mt-1">设置</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</body>
+</html> 

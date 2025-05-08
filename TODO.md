@@ -1,0 +1,33 @@
+# Trustee Flask 手机端页面开发任务
+
+- [x] 初始化 Flask 项目结构 (`app.py`, `templates/`, `static/`)
+- [x] 配置 Flask 以使用 Tailwind CSS (参考 `test.html` - 使用 CDN)
+- [x] **页面开发:**
+    - [x] 设备连接页面 (`/` 或 `/devices`):
+        - [x] 创建 `devices.html` 模板
+        - [x] 仿照 `test.html` 设计布局和样式
+        - [x] 添加静态设备列表数据
+    - [x] 任务列表页面 (`/tasks`):
+        - [x] 创建 `tasks.html` 模板
+        - [x] 仿照 `test.html` 设计布局和样式
+        - [x] 添加过滤按钮 (全部, 等待中, 执行中, 已完成)
+        - [x] 添加静态任务列表数据及状态显示
+    - [x] 创建任务页面 (`/tasks/new`):
+        - [x] 创建 `create_task.html` 模板
+        - [x] 仿照 `test.html` 设计布局和样式
+        - [x] 添加任务名称、类型、时间、描述等表单字段
+    - [x] 任务详情页面 (`/tasks/<task_id>`):
+        - [x] 创建 `task_detail.html` 模板
+        - [x] 仿照 `test.html` 设计布局和样式
+        - [x] 显示任务进度、基本信息、配置、执行历史 (使用静态数据)
+    - [x] 历史记录页面 (`/history`):
+        - [x] 创建 `history.html` 模板
+        - [x] 仿照 `test.html` 设计布局和样式
+        - [x] 添加搜索框和过滤按钮
+        - [x] 按日期分组显示静态历史记录
+- [x] **Flask 路由:**
+    - [x] 在 `app.py` 中为每个页面创建路由和视图函数
+    - [x] 确保路由能够正确渲染对应的 HTML 模板
+- [x] **基础导航:**
+    - [x] 实现页面底部导航栏 (设备, 任务, 历史, 设置)
+    - [x] 确保导航链接指向正确的路由
