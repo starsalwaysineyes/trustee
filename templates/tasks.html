@@ -402,21 +402,19 @@ function setupEventListeners() {
 }
 
 // 加载任务列表
-async function loadTasks() {
+async function loadTasks(status = '') {
     try {
-        const response = await fetch('/api/tasks');
-        const data = await response.json();
+        const url = status ? `/api/tasks?status=${status}` : '/api/tasks';
+        const data = await apiRequest(url);
         
-        if (data.success) {
-            allTasks = data.tasks;
-            updateStats(data.tasks);
-            filterTasks();
-        } else {
-            showError('获取任务列表失败: ' + data.message);
+        if (data) {
+            tasks = data.tasks || [];
+            renderTasks();
+            updateStats();
         }
     } catch (error) {
-        console.error('加载任务失败:', error);
-        showError('网络错误，请检查连接');
+        console.error('加载任务列表失败:', error);
+        showMessage('加载任务列表失败', 'error');
     }
 }
 

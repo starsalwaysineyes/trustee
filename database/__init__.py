@@ -10,5 +10,5 @@ from .dao import *
 __all__ = [
     'db_manager',
     'Task', 'TaskStep', 'Screenshot', 'AIAnalysis', 'Execution', 'User', 'Device',
-    'TaskDAO', 'TaskStepDAO', 'ScreenshotDAO', 'AIAnalysisDAO', 'ExecutionDAO'
+    'TaskDAO', 'TaskStepDAO', 'ScreenshotDAO', 'AIAnalysisDAO', 'ExecutionDAO', 'UserDAO', 'DeviceDAO'
 ] 

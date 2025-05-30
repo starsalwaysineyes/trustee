@@ -244,23 +244,18 @@ document.addEventListener('DOMContentLoaded', function() {
 // 加载设备列表
 async function loadDevices() {
     try {
-        const response = await fetch('/api/devices');
-        const data = await response.json();
-        
-        if (data.success) {
-            devices = data.devices;
-            renderDevices();
-        } else {
-            showError('获取设备列表失败: ' + data.message);
+        const data = await apiRequest('/api/devices');
+        if (data) {
+            renderDevices(data.devices || []);
         }
     } catch (error) {
-        console.error('加载设备失败:', error);
-        showError('网络错误，请检查连接');
+        console.error('加载设备列表失败:', error);
+        showMessage('加载设备列表失败', 'error');
     }
 }
 
 // 渲染设备列表
-function renderDevices() {
+function renderDevices(devices) {
     const container = document.getElementById('devicesList');
     
     if (devices.length === 0) {
@@ -383,42 +378,29 @@ function hideAddDeviceModal() {
     document.getElementById('addDeviceForm').reset();
 }
 
-// 添加设备表单提交
-document.getElementById('addDeviceForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const deviceData = {
-        device_name: formData.get('device_name'),
-        device_ip: formData.get('device_ip'),
-        device_type: formData.get('device_type'),
-        os_info: formData.get('os_info'),
-        screen_resolution: formData.get('screen_resolution')
-    };
+// 添加设备
+async function addDevice() {
+    const formData = new FormData(document.getElementById('deviceForm'));
+    const deviceData = Object.fromEntries(formData.entries());
     
     try {
-        const response = await fetch('/api/devices', {
+        const data = await apiRequest('/api/devices', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
             body: JSON.stringify(deviceData)
         });
         
-        const data = await response.json();
-        
-        if (data.success) {
-            showSuccess('设备添加成功');
-            hideAddDeviceModal();
-            loadDevices(); // 重新加载设备列表
+        if (data && data.success) {
+            showMessage('设备添加成功', 'success');
+            closeModal();
+            loadDevices();
         } else {
-            showError('添加设备失败: ' + data.message);
+            showMessage(data?.message || '添加设备失败', 'error');
         }
     } catch (error) {
         console.error('添加设备失败:', error);
-        showError('网络错误，请重试');
+        showMessage('添加设备失败', 'error');
     }
-});
+}
 
 // 连接设备
 async function connectDevice(deviceId) {

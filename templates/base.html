@@ -309,7 +309,7 @@
             </div>
             
             <nav class="nav-menu">
-                <a href="{{ url_for('device_list') }}" class="nav-item {% if current_page == 'devices' %}active{% endif %}">
+                <a href="{{ url_for('devices_page') }}" class="nav-item {% if current_page == 'devices' %}active{% endif %}">
                     <i class="material-icons">devices</i>
                     设备管理
                 </a>
@@ -355,29 +355,144 @@
     </div>
     
     <script>
-        // 切换侧边栏显示
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.toggle('open');
+        // 全局API请求函数，自动处理认证
+        async function apiRequest(url, options = {}) {
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    }
+                });
+                
+                // 如果返回401，说明未登录，跳转到登录页
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return null;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API请求错误:', error);
+                throw error;
+            }
         }
         
-        // 点击主内容区域关闭侧边栏（移动端）
-        document.addEventListener('click', function(e) {
-            if (window.innerWidth <= 768) {
-                const sidebar = document.getElementById('sidebar');
-                const menuBtn = document.querySelector('.mobile-menu-btn');
-                
-                if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
-                    sidebar.classList.remove('open');
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/dashboard/stats');
+                if (response.status === 401) {
+                    window.location.href = '/login';
+                    return false;
                 }
+                return true;
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                return false;
+            }
+        }
+        
+        // 页面加载时检查登录状态
+        document.addEventListener('DOMContentLoaded', function() {
+            // 如果不是登录页面，检查登录状态
+            if (!window.location.pathname.includes('/login')) {
+                checkLoginStatus();
             }
         });
         
-        // 窗口大小变化时处理侧边栏
+        // 通用的显示消息函数
+        function showMessage(message, type = 'info') {
+            // 创建消息元素
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${type}`;
+            messageDiv.textContent = message;
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 12px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 10000;
+                animation: slideIn 0.3s ease-out;
+                max-width: 300px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            // 根据类型设置颜色
+            const colors = {
+                'success': '#4CAF50',
+                'error': '#f44336',
+                'warning': '#ff9800',
+                'info': '#2196F3'
+            };
+            messageDiv.style.backgroundColor = colors[type] || colors.info;
+            
+            // 添加动画样式
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(100%); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            // 添加到页面
+            document.body.appendChild(messageDiv);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                messageDiv.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // 原有的侧边栏切换逻辑
+        function toggleSidebar() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            sidebar.classList.toggle('collapsed');
+            
+            if (window.innerWidth <= 768) {
+                overlay.style.display = sidebar.classList.contains('collapsed') ? 'none' : 'block';
+            }
+        }
+        
+        // 响应式处理
         window.addEventListener('resize', function() {
-            const sidebar = document.getElementById('sidebar');
+            const sidebar = document.querySelector('.sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
             if (window.innerWidth > 768) {
-                sidebar.classList.remove('open');
+                overlay.style.display = 'none';
+                sidebar.classList.remove('collapsed');
+            } else {
+                overlay.style.display = sidebar.classList.contains('collapsed') ? 'none' : 'block';
+            }
+        });
+        
+        // 点击遮罩层关闭侧边栏
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('sidebar-overlay')) {
+                toggleSidebar();
             }
         });
     </script>

@@ -88,6 +88,7 @@ class DatabaseManager:
                     status VARCHAR(20) DEFAULT 'offline',
                     owner_user_id INTEGER,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (owner_user_id) REFERENCES users(user_id)
                 )
             """)
@@ -112,6 +113,8 @@ class DatabaseManager:
                     completed_steps INTEGER DEFAULT 0,
                     error_message TEXT,
                     config_json TEXT,
+                    estimated_duration VARCHAR(50),
+                    actual_duration VARCHAR(50),
                     FOREIGN KEY (user_id) REFERENCES users(user_id),
                     FOREIGN KEY (device_id) REFERENCES devices(device_id)
                 )

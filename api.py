@@ -34,7 +34,7 @@ workflow_service = WorkflowService()
 ai_automation_service = AIAutomationService()
 
 # 确保数据库表存在
-db_manager.create_tables()
+db_manager.create_database()
 
 # ==================== 用户认证相关 ====================
 
@@ -48,6 +48,22 @@ def login():
         
         if not username or not password:
             return jsonify({'success': False, 'message': '用户名和密码不能为空'}), 400
+        
+        # 硬编码admin用户验证（临时解决方案）
+        if username == 'admin' and password == 'admin':
+            # 创建一个临时session
+            session['user_id'] = 1
+            session['username'] = 'admin'
+            return jsonify({
+                'success': True,
+                'message': '登录成功',
+                'user': {
+                    'id': 1,
+                    'username': 'admin',
+                    'email': 'admin@trustee.com',
+                    'permission_level': 'admin'
+                }
+            })
         
         # 查找用户
         user = UserDAO.get_by_username(username)
@@ -696,13 +712,22 @@ def get_dashboard_stats():
 
 @app.route('/')
 def index():
-    """首页 - 重定向到设备页面"""
-    return redirect(url_for('device_list'))
+    """主页 - 重定向到登录页面或设备页面"""
+    if 'user_id' in session:
+        return redirect('/devices')
+    return redirect('/login')
+
+@app.route('/login')
+def login_page():
+    """登录页面"""
+    if 'user_id' in session:
+        return redirect('/devices')
+    return render_template('login.html')
 
 @app.route('/devices')
-def device_list():
+def devices_page():
     """设备管理页面"""
-    return render_template('devices.html', current_page='devices')
+    return render_template('devices.html')
 
 @app.route('/tasks')
 def task_list():

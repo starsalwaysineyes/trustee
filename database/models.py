@@ -46,6 +46,7 @@ class Device:
     status: str = "offline"  # 'online', 'offline', 'busy'
     owner_user_id: Optional[int] = None
     created_at: Optional[datetime] = None
+    last_updated: Optional[datetime] = None
 
 @dataclass
 class Task:
@@ -67,6 +68,8 @@ class Task:
     completed_steps: int = 0
     error_message: Optional[str] = None
     config_json: Optional[str] = None
+    estimated_duration: Optional[str] = None
+    actual_duration: Optional[str] = None
     
     @property
     def config(self) -> Dict[str, Any]:

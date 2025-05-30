@@ -115,6 +115,42 @@ class TaskDAO(BaseDAO):
             """, (completed_steps, total_steps, datetime.now().isoformat(), task_id))
             conn.commit()
             return cursor.rowcount > 0
+    
+    @staticmethod
+    def update(task: Task) -> bool:
+        """更新任务信息"""
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE tasks SET task_name = ?, task_description = ?, task_type = ?,
+                               natural_language_input = ?, status = ?, priority = ?,
+                               config_json = ?, last_updated = ?
+                WHERE task_id = ?
+            """, (
+                task.task_name, task.task_description, task.task_type,
+                task.natural_language_input, task.status, task.priority,
+                task.config_json, datetime.now().isoformat(), task.task_id
+            ))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    @staticmethod
+    def delete(task_id: int) -> bool:
+        """删除任务"""
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            # 先删除相关的步骤
+            cursor.execute("DELETE FROM task_steps WHERE task_id = ?", (task_id,))
+            # 删除相关的截图
+            cursor.execute("DELETE FROM screenshots WHERE task_id = ?", (task_id,))
+            # 删除相关的AI分析
+            cursor.execute("DELETE FROM ai_analysis WHERE task_id = ?", (task_id,))
+            # 删除相关的执行记录
+            cursor.execute("DELETE FROM executions WHERE task_id = ?", (task_id,))
+            # 最后删除任务本身
+            cursor.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
+            conn.commit()
+            return cursor.rowcount > 0
 
 class TaskStepDAO(BaseDAO):
     """任务步骤数据访问对象"""
@@ -328,6 +364,17 @@ class DeviceDAO(BaseDAO):
             return device_id
     
     @staticmethod
+    def get_by_id(device_id: int) -> Optional[Device]:
+        """根据ID获取设备"""
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM devices WHERE device_id = ?", (device_id,))
+            row = cursor.fetchone()
+            if row:
+                return Device(**BaseDAO.row_to_dict(row))
+            return None
+    
+    @staticmethod
     def get_by_user_id(user_id: int) -> List[Device]:
         """获取用户的设备列表"""
         with db_manager.get_connection() as conn:
@@ -337,4 +384,30 @@ class DeviceDAO(BaseDAO):
                 (user_id,)
             )
             rows = cursor.fetchall()
-            return [Device(**BaseDAO.row_to_dict(row)) for row in rows] 
+            return [Device(**BaseDAO.row_to_dict(row)) for row in rows]
+    
+    @staticmethod
+    def update(device: Device) -> bool:
+        """更新设备信息"""
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                UPDATE devices SET device_name = ?, device_ip = ?, device_type = ?, 
+                                 os_info = ?, screen_resolution = ?, status = ?, last_updated = ?
+                WHERE device_id = ?
+            """, (
+                device.device_name, device.device_ip, device.device_type,
+                device.os_info, device.screen_resolution, device.status, 
+                datetime.now().isoformat(), device.device_id
+            ))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    @staticmethod
+    def delete(device_id: int) -> bool:
+        """删除设备"""
+        with db_manager.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM devices WHERE device_id = ?", (device_id,))
+            conn.commit()
+            return cursor.rowcount > 0 
