@@ -1,0 +1,9 @@
+Flask>=2.3.0
+Flask-CORS>=4.0.0
+pillow>=9.0.0
+matplotlib>=3.5.0
+pyautogui>=0.9.54
+pyperclip>=1.8.2
+volcengine-python-sdk[ark]>=1.0.0
+dataclasses-json>=0.5.7
+typing-extensions>=4.0.0 

@@ -258,6 +258,7 @@ def run(img_path, user_prompt):
 
 if __name__ == "__main__":
     image_path = "D:\Code\综合项目实践\\trustee\LLM\pics\\test1.png"
+    image_path = "LLM/pics/test1.png"
     model_response = run(image_path, "帮我最大化typora的窗口")
     parsed_output = json.loads(parse_action_output(model_response))
     print(parsed_output)

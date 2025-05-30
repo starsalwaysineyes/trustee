@@ -3,93 +3,383 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trustee - {{ title | default('远程任务管理') }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>{% block title %}Trustee - 智能自动化助手{% endblock %}</title>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        /* Limit width and height for mobile screen simulation */
-        body {
-            background-color: #f3f4f6; /* bg-gray-100 */
-            display: flex;
-            justify-content: center;
-            align-items: flex-start; /* Align to top */
-            min-height: 100vh;
-            padding-top: 2rem; /* Add some top padding */
-            padding-bottom: 2rem; /* Add some bottom padding */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .screen {
-            max-width: 24rem; /* max-w-md, approx 384px */
-            width: 100%;
-            height: 50.75rem; /* h-[812px] */
-            background-color: white;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        .sidebar {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-        }
-        .content-area {
-            flex-grow: 1;
-            overflow-y: auto; /* Allow content scrolling */
-            padding-bottom: 60px; /* Space for bottom nav */
-        }
-        .bottom-nav {
-            position: absolute;
-            bottom: 0;
+            position: fixed;
+            height: 100vh;
             left: 0;
-            right: 0;
-            border-top: 1px solid #e5e7eb; /* border-gray-200 */
-            background-color: white;
-            padding-top: 0.75rem; /* py-3 */
-            padding-bottom: 0.75rem; /* py-3 */
-            padding-left: 1rem; /* px-4 */
-            padding-right: 1rem; /* px-4 */
-            z-index: 10;
+            top: 0;
+            z-index: 1000;
         }
-
-        /* Helper to visually identify pages */
-        /* You can remove this later */
-        /* body > .screen::before {
-            content: "{{ self._TemplateReference__context.name|replace('.html','')|capitalize }}";
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: rgba(0,0,0,0.1);
-            padding: 2px 5px;
-            font-size: 10px;
-            border-radius: 3px;
-            z-index: 100;
-        } */
+        
+        .sidebar-header {
+            padding: 30px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .nav-menu {
+            flex: 1;
+            padding: 20px 0;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            margin: 2px 10px;
+            border-radius: 8px;
+            color: #666;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .nav-item:hover {
+            background: #f0f8ff;
+            color: #2196F3;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .nav-item i {
+            margin-right: 12px;
+            font-size: 20px;
+        }
+        
+        .main-content {
+            margin-left: 250px;
+            flex: 1;
+            background: #f8f9fa;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .page-header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .page-header p {
+            color: #666;
+            font-size: 16px;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #1976D2;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #9E9E9E;
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            color: #666;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .btn-outline:hover {
+            border-color: #2196F3;
+            color: #2196F3;
+        }
+        
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+        
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid #e0e0e0;
+            background: rgba(0,0,0,0.02);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        .user-details {
+            flex: 1;
+        }
+        
+        .user-name {
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .user-role {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        @keyframes rotating {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .rotating {
+            animation: rotating 1s linear infinite;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-left: 0;
+                padding: 10px;
+            }
+            
+            .page-header {
+                padding: 20px;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+                position: fixed;
+                top: 20px;
+                left: 20px;
+                z-index: 1001;
+                background: white;
+                border: none;
+                border-radius: 8px;
+                padding: 10px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                cursor: pointer;
+            }
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+        }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-    <div class="screen">
-        {% block header %}{% endblock %}
-
-        <div class="content-area">
-            {% block content %}{% endblock %}
-        </div>
-
-        <div class="bottom-nav">
-            <div class="flex justify-around">
-                <a href="{{ url_for('device_list') }}" class="flex flex-col items-center {% if current_page == 'devices' %}text-blue-600{% else %}text-gray-400{% endif %}">
-                    <span class="material-icons">devices</span>
-                    <span class="text-xs mt-1">设备</span>
+    <div class="app-container">
+        <!-- 移动端菜单按钮 -->
+        <button class="mobile-menu-btn" onclick="toggleSidebar()">
+            <i class="material-icons">menu</i>
+        </button>
+        
+        <!-- 侧边栏 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon">
+                        <i class="material-icons">smart_toy</i>
+                    </div>
+                    <span>Trustee</span>
+                </div>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="{{ url_for('device_list') }}" class="nav-item {% if current_page == 'devices' %}active{% endif %}">
+                    <i class="material-icons">devices</i>
+                    设备管理
                 </a>
-                <a href="{{ url_for('task_list') }}" class="flex flex-col items-center {% if current_page == 'tasks' %}text-blue-600{% else %}text-gray-400{% endif %}">
-                    <span class="material-icons">assignment</span>
-                    <span class="text-xs mt-1">任务</span>
+                <a href="{{ url_for('task_list') }}" class="nav-item {% if current_page == 'tasks' %}active{% endif %}">
+                    <i class="material-icons">assignment</i>
+                    任务管理
                 </a>
-                <a href="{{ url_for('history_list') }}" class="flex flex-col items-center {% if current_page == 'history' %}text-blue-600{% else %}text-gray-400{% endif %}">
-                    <span class="material-icons">history</span>
-                    <span class="text-xs mt-1">历史</span>
+                <a href="{{ url_for('ai_studio') }}" class="nav-item {% if current_page == 'ai-studio' %}active{% endif %}">
+                    <i class="material-icons">psychology</i>
+                    AI工作室
                 </a>
-                <button class="flex flex-col items-center text-gray-400"> <!-- Settings page not implemented yet -->
-                    <span class="material-icons">settings</span>
-                    <span class="text-xs mt-1">设置</span>
-                </button>
+                <a href="{{ url_for('history_list') }}" class="nav-item {% if current_page == 'history' %}active{% endif %}">
+                    <i class="material-icons">history</i>
+                    执行历史
+                </a>
+                <div style="margin: 20px 10px; border-top: 1px solid #e0e0e0;"></div>
+                <a href="/settings" class="nav-item">
+                    <i class="material-icons">settings</i>
+                    系统设置
+                </a>
+                <a href="/help" class="nav-item">
+                    <i class="material-icons">help</i>
+                    帮助文档
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar">A</div>
+                    <div class="user-details">
+                        <div class="user-name">管理员</div>
+                        <div class="user-role">系统管理员</div>
+                    </div>
+                    <i class="material-icons" style="color: #666; cursor: pointer;">more_vert</i>
+                </div>
             </div>
         </div>
+        
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
     </div>
+    
+    <script>
+        // 切换侧边栏显示
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+        }
+        
+        // 点击主内容区域关闭侧边栏（移动端）
+        document.addEventListener('click', function(e) {
+            if (window.innerWidth <= 768) {
+                const sidebar = document.getElementById('sidebar');
+                const menuBtn = document.querySelector('.mobile-menu-btn');
+                
+                if (!sidebar.contains(e.target) && !menuBtn.contains(e.target)) {
+                    sidebar.classList.remove('open');
+                }
+            }
+        });
+        
+        // 窗口大小变化时处理侧边栏
+        window.addEventListener('resize', function() {
+            const sidebar = document.getElementById('sidebar');
+            if (window.innerWidth > 768) {
+                sidebar.classList.remove('open');
+            }
+        });
+    </script>
 </body>
 </html> 

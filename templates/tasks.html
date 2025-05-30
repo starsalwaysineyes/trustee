@@ -1,97 +1,725 @@
-{% extends 'base.html' %}
-{% block title %}任务列表{% endblock %}
+{% extends "base.html" %}
 
-{% block header %}
-<div class="bg-blue-600 p-6">
-    <div class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold text-white">任务列表</h1>
-        <a href="{{ url_for('create_task_form') }}" class="bg-blue-700 p-2 rounded-full block">
-            <span class="material-icons text-white">add</span>
-        </a>
-    </div>
-    <div class="flex items-center mt-2">
-        <div class="bg-blue-500 p-1 rounded-full mr-2">
-            <span class="material-icons text-white text-sm">computer</span>
-        </div>
-        <!-- Assuming the first connected device is the active one -->
-        {% set active_device = devices|selectattr('connected', 'equalto', true)|first %}
-        <p class="text-blue-100 text-sm">
-            {{ active_device.name if active_device else '未连接设备' }} - {{ '已连接' if active_device else '未连接' }}
-        </p>
-    </div>
-</div>
+{% block title %}任务管理 - Trustee{% endblock %}
+
+{% block extra_head %}
+<style>
+    .tasks-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .filter-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .tab-btn {
+        padding: 8px 16px;
+        border: 2px solid #e0e0e0;
+        background: white;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 14px;
+    }
+    
+    .tab-btn.active {
+        background: #2196F3;
+        color: white;
+        border-color: #2196F3;
+    }
+    
+    .tab-btn:hover {
+        border-color: #2196F3;
+    }
+    
+    .task-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-left: 4px solid #2196F3;
+        transition: all 0.3s ease;
+    }
+    
+    .task-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    
+    .task-card.pending {
+        border-left-color: #FF9800;
+    }
+    
+    .task-card.running {
+        border-left-color: #4CAF50;
+    }
+    
+    .task-card.completed {
+        border-left-color: #9E9E9E;
+        opacity: 0.8;
+    }
+    
+    .task-card.failed {
+        border-left-color: #f44336;
+    }
+    
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .task-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333;
+        margin: 0 0 5px 0;
+    }
+    
+    .task-description {
+        color: #666;
+        font-size: 14px;
+        margin: 0;
+    }
+    
+    .task-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .status-pending {
+        background: #fff3e0;
+        color: #f57c00;
+    }
+    
+    .status-running {
+        background: #e8f5e8;
+        color: #2e7d32;
+    }
+    
+    .status-completed {
+        background: #f5f5f5;
+        color: #616161;
+    }
+    
+    .status-failed {
+        background: #ffebee;
+        color: #c62828;
+    }
+    
+    .task-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin: 15px 0;
+    }
+    
+    .meta-item {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 6px;
+    }
+    
+    .meta-label {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+    }
+    
+    .meta-value {
+        font-weight: 500;
+        color: #333;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e0e0e0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 10px 0;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #4CAF50, #8BC34A);
+        transition: width 0.3s ease;
+    }
+    
+    .task-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .action-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .btn-primary {
+        background: #2196F3;
+        color: white;
+    }
+    
+    .btn-success {
+        background: #4CAF50;
+        color: white;
+    }
+    
+    .btn-warning {
+        background: #FF9800;
+        color: white;
+    }
+    
+    .btn-danger {
+        background: #f44336;
+        color: white;
+    }
+    
+    .btn-secondary {
+        background: #9E9E9E;
+        color: white;
+    }
+    
+    .create-task-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .create-task-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #666;
+    }
+    
+    .empty-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        color: #ddd;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 40px;
+        color: #666;
+    }
+    
+    .search-bar {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 12px 20px 12px 50px;
+        border: 2px solid #e0e0e0;
+        border-radius: 25px;
+        font-size: 14px;
+        transition: border-color 0.3s;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #2196F3;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #666;
+    }
+    
+    .task-natural-input {
+        background: #e3f2fd;
+        padding: 10px;
+        border-radius: 6px;
+        font-style: italic;
+        color: #1976d2;
+        margin-top: 10px;
+        font-size: 13px;
+    }
+    
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    
+    .stat-number {
+        font-size: 32px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 14px;
+    }
+    
+    @media (max-width: 768px) {
+        .task-meta {
+            grid-template-columns: 1fr;
+        }
+        
+        .task-actions {
+            flex-wrap: wrap;
+        }
+        
+        .tasks-header {
+            flex-direction: column;
+            gap: 15px;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="p-4">
-    <div class="flex space-x-2 mb-4 overflow-x-auto pb-2">
-        <button class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm whitespace-nowrap">全部</button>
-        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">等待中</button>
-        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">执行中</button>
-        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">已完成</button>
+<div class="page-header">
+    <h1><i class="material-icons">assignment</i> 任务管理</h1>
+    <p>创建、监控和管理你的自动化任务</p>
+</div>
+
+<!-- 统计卡片 -->
+<div id="statsCards" class="stats-cards">
+    <div class="stat-card">
+        <div class="stat-number" id="totalTasks">0</div>
+        <div class="stat-label">总任务数</div>
     </div>
-    
-    <div class="space-y-3">
-        {% for task in tasks %}
-        <div class="p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-            <div class="flex justify-between items-start">
-                <a href="{{ url_for('task_detail', task_id=task.id) }}" class="block flex-grow mr-2">
-                    <div class="flex items-center">
-                        <h3 class="font-medium">{{ task.name }}</h3>
-                        {% if task.status == '执行中' %}
-                        <span class="ml-2 px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">{{ task.status }}</span>
-                        {% elif task.status == '等待中' %}
-                        <span class="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full">{{ task.status }}</span>
-                        {% else %}
-                        <span class="ml-2 px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">{{ task.status }}</span>
-                        {% endif %}
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1">{{ task.schedule }}</p>
-                </a>
-                <div class="flex space-x-2 flex-shrink-0">
-                    {% if task.status == '执行中' %}
-                    <button class="p-1.5 bg-gray-100 rounded-full">
-                        <span class="material-icons text-gray-500 text-sm">edit</span>
-                    </button>
-                    <button class="p-1.5 bg-red-100 rounded-full">
-                        <span class="material-icons text-red-500 text-sm">stop</span>
-                    </button>
-                    {% elif task.status == '等待中' %}
-                    <button class="p-1.5 bg-gray-100 rounded-full">
-                        <span class="material-icons text-gray-500 text-sm">edit</span>
-                    </button>
-                    <button class="p-1.5 bg-blue-100 rounded-full">
-                        <span class="material-icons text-blue-500 text-sm">play_arrow</span>
-                    </button>
-                    {% else %}
-                    <button class="p-1.5 bg-gray-100 rounded-full">
-                        <span class="material-icons text-gray-500 text-sm">visibility</span>
-                    </button>
-                    <button class="p-1.5 bg-blue-100 rounded-full">
-                        <span class="material-icons text-blue-500 text-sm">replay</span>
-                    </button>
-                    {% endif %}
-                </div>
-            </div>
-            {% if task.status == '执行中' and task.countdown %}
-            <div class="mt-3 pt-3 border-t border-gray-100">
-                <div class="flex space-x-2">
-                    <span class="material-icons text-gray-400 text-sm">schedule</span>
-                    <p class="text-xs text-gray-500">倒计时：{{ task.countdown }}</p>
-                </div>
-            </div>
-            {% elif task.icon %}
-            <div class="mt-3 pt-3 border-t border-gray-100">
-                <div class="flex space-x-2">
-                    <span class="material-icons text-gray-400 text-sm">{{ task.icon }}</span>
-                    <p class="text-xs text-gray-500">{{ task.details }}</p>
-                </div>
-            </div>
-            {% endif %}
-        </div>
-        {% else %}
-        <p class="text-gray-500 text-sm">当前没有任务。</p>
-        {% endfor %}
+    <div class="stat-card">
+        <div class="stat-number" id="runningTasks">0</div>
+        <div class="stat-label">运行中</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="completedTasks">0</div>
+        <div class="stat-label">已完成</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number" id="successRate">0%</div>
+        <div class="stat-label">成功率</div>
     </div>
 </div>
+
+<div class="tasks-header">
+    <div>
+        <!-- 搜索栏 -->
+        <div class="search-bar">
+            <i class="material-icons search-icon">search</i>
+            <input type="text" class="search-input" id="searchInput" placeholder="搜索任务名称或描述...">
+        </div>
+        
+        <!-- 过滤标签 -->
+        <div class="filter-tabs">
+            <button class="tab-btn active" data-status="all">全部</button>
+            <button class="tab-btn" data-status="pending">等待中</button>
+            <button class="tab-btn" data-status="running">运行中</button>
+            <button class="tab-btn" data-status="completed">已完成</button>
+            <button class="tab-btn" data-status="failed">失败</button>
+        </div>
+    </div>
+    
+    <button class="create-task-btn" onclick="window.location.href='/tasks/new'">
+        <i class="material-icons">add</i> 创建新任务
+    </button>
+</div>
+
+<div id="tasksContainer">
+    <div class="loading">
+        <i class="material-icons rotating">refresh</i>
+        <p>正在加载任务列表...</p>
+    </div>
+</div>
+
+<script>
+let allTasks = [];
+let filteredTasks = [];
+let currentFilter = 'all';
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadTasks();
+    setupEventListeners();
+    // 每30秒刷新一次任务状态
+    setInterval(loadTasks, 30000);
+});
+
+// 设置事件监听器
+function setupEventListeners() {
+    // 过滤标签点击
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentFilter = this.dataset.status;
+            filterTasks();
+        });
+    });
+    
+    // 搜索输入
+    document.getElementById('searchInput').addEventListener('input', function() {
+        filterTasks();
+    });
+}
+
+// 加载任务列表
+async function loadTasks() {
+    try {
+        const response = await fetch('/api/tasks');
+        const data = await response.json();
+        
+        if (data.success) {
+            allTasks = data.tasks;
+            updateStats(data.tasks);
+            filterTasks();
+        } else {
+            showError('获取任务列表失败: ' + data.message);
+        }
+    } catch (error) {
+        console.error('加载任务失败:', error);
+        showError('网络错误，请检查连接');
+    }
+}
+
+// 更新统计信息
+function updateStats(tasks) {
+    const total = tasks.length;
+    const running = tasks.filter(t => t.status === 'running').length;
+    const completed = tasks.filter(t => t.status === 'completed').length;
+    const failed = tasks.filter(t => t.status === 'failed').length;
+    const successRate = (completed + failed) > 0 ? Math.round(completed / (completed + failed) * 100) : 0;
+    
+    document.getElementById('totalTasks').textContent = total;
+    document.getElementById('runningTasks').textContent = running;
+    document.getElementById('completedTasks').textContent = completed;
+    document.getElementById('successRate').textContent = successRate + '%';
+}
+
+// 过滤任务
+function filterTasks() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    
+    filteredTasks = allTasks.filter(task => {
+        // 状态过滤
+        if (currentFilter !== 'all' && task.status !== currentFilter) {
+            return false;
+        }
+        
+        // 搜索过滤
+        if (searchTerm) {
+            const searchText = (task.task_name + ' ' + task.task_description + ' ' + task.natural_language_input).toLowerCase();
+            if (!searchText.includes(searchTerm)) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+    
+    renderTasks();
+}
+
+// 渲染任务列表
+function renderTasks() {
+    const container = document.getElementById('tasksContainer');
+    
+    if (filteredTasks.length === 0) {
+        const emptyMessage = currentFilter === 'all' ? 
+            '还没有创建任何任务' : 
+            `没有找到${getStatusName(currentFilter)}的任务`;
+        
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="material-icons">assignment</i>
+                </div>
+                <h3>${emptyMessage}</h3>
+                <p>点击"创建新任务"按钮开始添加自动化任务</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = filteredTasks.map(task => `
+        <div class="task-card ${task.status}">
+            <div class="task-header">
+                <div>
+                    <h3 class="task-title">${task.task_name}</h3>
+                    <p class="task-description">${task.task_description || '暂无描述'}</p>
+                </div>
+                <span class="task-status status-${task.status}">
+                    <i class="material-icons" style="font-size: 14px; margin-right: 4px;">
+                        ${getStatusIcon(task.status)}
+                    </i>
+                    ${getStatusName(task.status)}
+                </span>
+            </div>
+            
+            ${task.natural_language_input ? `
+                <div class="task-natural-input">
+                    <i class="material-icons" style="font-size: 14px; margin-right: 5px;">chat</i>
+                    "${task.natural_language_input}"
+                </div>
+            ` : ''}
+            
+            ${task.status === 'running' ? `
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: ${task.progress || 0}%"></div>
+                </div>
+                <div style="text-align: center; font-size: 12px; color: #666; margin-top: 5px;">
+                    进度: ${task.progress || 0}% (${task.completed_steps || 0}/${task.total_steps || 0} 步骤)
+                </div>
+            ` : ''}
+            
+            <div class="task-meta">
+                <div class="meta-item">
+                    <div class="meta-label">创建时间</div>
+                    <div class="meta-value">${formatTime(task.created_at)}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">任务类型</div>
+                    <div class="meta-value">${task.task_type || '自动化任务'}</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">步骤数量</div>
+                    <div class="meta-value">${task.steps_count || 0} 步</div>
+                </div>
+                <div class="meta-item">
+                    <div class="meta-label">预计时长</div>
+                    <div class="meta-value">${task.estimated_duration || '未知'}</div>
+                </div>
+            </div>
+            
+            <div class="task-actions">
+                <button class="action-btn btn-primary" onclick="viewTaskDetail(${task.task_id})">
+                    <i class="material-icons">visibility</i> 查看详情
+                </button>
+                
+                ${task.status === 'pending' ? `
+                    <button class="action-btn btn-success" onclick="executeTask(${task.task_id})">
+                        <i class="material-icons">play_arrow</i> 开始执行
+                    </button>
+                ` : ''}
+                
+                ${task.status === 'running' ? `
+                    <button class="action-btn btn-warning" onclick="pauseTask(${task.task_id})">
+                        <i class="material-icons">pause</i> 暂停
+                    </button>
+                    <button class="action-btn btn-danger" onclick="stopTask(${task.task_id})">
+                        <i class="material-icons">stop</i> 停止
+                    </button>
+                ` : ''}
+                
+                ${['completed', 'failed'].includes(task.status) ? `
+                    <button class="action-btn btn-secondary" onclick="restartTask(${task.task_id})">
+                        <i class="material-icons">refresh</i> 重新执行
+                    </button>
+                ` : ''}
+                
+                <button class="action-btn btn-secondary" onclick="duplicateTask(${task.task_id})">
+                    <i class="material-icons">content_copy</i> 复制
+                </button>
+                
+                <button class="action-btn btn-danger" onclick="deleteTask(${task.task_id})">
+                    <i class="material-icons">delete</i> 删除
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 获取状态图标
+function getStatusIcon(status) {
+    const icons = {
+        'pending': 'schedule',
+        'running': 'play_circle_filled',
+        'completed': 'check_circle',
+        'failed': 'error',
+        'paused': 'pause_circle_filled'
+    };
+    return icons[status] || 'help';
+}
+
+// 获取状态名称
+function getStatusName(status) {
+    const names = {
+        'pending': '等待中',
+        'running': '运行中',
+        'completed': '已完成',
+        'failed': '失败',
+        'paused': '已暂停',
+        'all': '全部'
+    };
+    return names[status] || '未知';
+}
+
+// 格式化时间
+function formatTime(timeStr) {
+    if (!timeStr) return '未知';
+    const date = new Date(timeStr);
+    return date.toLocaleString('zh-CN');
+}
+
+// 查看任务详情
+function viewTaskDetail(taskId) {
+    window.location.href = `/tasks/${taskId}`;
+}
+
+// 执行任务
+async function executeTask(taskId) {
+    if (!confirm('确定要开始执行此任务吗？')) {
+        return;
+    }
+    
+    try {
+        showInfo('正在启动任务...');
+        
+        const response = await fetch(`/api/tasks/${taskId}/execute`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccess('任务开始执行');
+            loadTasks(); // 刷新任务列表
+        } else {
+            showError('启动任务失败: ' + result.message);
+        }
+    } catch (error) {
+        console.error('执行任务失败:', error);
+        showError('网络错误，请重试');
+    }
+}
+
+// 暂停任务
+async function pauseTask(taskId) {
+    // 这里可以添加暂停任务的API调用
+    showInfo('暂停功能开发中...');
+}
+
+// 停止任务
+async function stopTask(taskId) {
+    if (!confirm('确定要停止此任务吗？')) {
+        return;
+    }
+    
+    // 这里可以添加停止任务的API调用
+    showInfo('停止功能开发中...');
+}
+
+// 重新执行任务
+async function restartTask(taskId) {
+    if (!confirm('确定要重新执行此任务吗？')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/execute`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccess('任务重新开始执行');
+            loadTasks();
+        } else {
+            showError('重新执行失败: ' + result.message);
+        }
+    } catch (error) {
+        console.error('重新执行失败:', error);
+        showError('网络错误，请重试');
+    }
+}
+
+// 复制任务
+function duplicateTask(taskId) {
+    const task = allTasks.find(t => t.task_id === taskId);
+    if (task) {
+        const newName = prompt('请输入新任务名称:', task.task_name + ' (副本)');
+        if (newName) {
+            // 这里可以添加复制任务的逻辑
+            showInfo('复制功能开发中...');
+        }
+    }
+}
+
+// 删除任务
+async function deleteTask(taskId) {
+    if (!confirm('确定要删除这个任务吗？此操作无法撤销。')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccess('任务删除成功');
+            loadTasks();
+        } else {
+            showError('删除任务失败: ' + result.message);
+        }
+    } catch (error) {
+        console.error('删除任务失败:', error);
+        showError('网络错误，请重试');
+    }
+}
+
+// 通知函数
+function showSuccess(message) {
+    alert('✅ ' + message);
+}
+
+function showError(message) {
+    alert('❌ ' + message);
+}
+
+function showInfo(message) {
+    alert('ℹ️ ' + message);
+}
+</script>
 {% endblock %} 

@@ -1,0 +1,694 @@
+{% extends "base.html" %}
+
+{% block title %}AI工作室 - Trustee{% endblock %}
+
+{% block extra_head %}
+<style>
+    .studio-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+        height: calc(100vh - 200px);
+    }
+    
+    .upload-section {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .results-section {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow-y: auto;
+    }
+    
+    .upload-area {
+        border: 2px dashed #ddd;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        background: #fafafa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+    
+    .upload-area:hover {
+        border-color: #2196F3;
+        background: #f0f8ff;
+    }
+    
+    .upload-area.dragover {
+        border-color: #2196F3;
+        background: #e3f2fd;
+    }
+    
+    .upload-icon {
+        font-size: 48px;
+        color: #ccc;
+        margin-bottom: 15px;
+    }
+    
+    .screenshot-preview {
+        max-width: 100%;
+        max-height: 300px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .instruction-input {
+        width: 100%;
+        padding: 15px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 100px;
+        margin-bottom: 20px;
+    }
+    
+    .instruction-input:focus {
+        outline: none;
+        border-color: #2196F3;
+    }
+    
+    .analyze-btn {
+        width: 100%;
+        padding: 15px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .analyze-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    }
+    
+    .analyze-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .result-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-left: 4px solid #2196F3;
+    }
+    
+    .result-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .result-icon {
+        background: #2196F3;
+        color: white;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 10px;
+        font-size: 18px;
+    }
+    
+    .thought-section {
+        background: white;
+        padding: 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        border-left: 3px solid #4CAF50;
+    }
+    
+    .code-section {
+        background: #263238;
+        color: #fff;
+        padding: 15px;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        overflow-x: auto;
+        margin-bottom: 15px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    .action-btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+    }
+    
+    .btn-execute {
+        background: #4CAF50;
+        color: white;
+    }
+    
+    .btn-execute:hover {
+        background: #45a049;
+    }
+    
+    .btn-preview {
+        background: #FF9800;
+        color: white;
+    }
+    
+    .btn-preview:hover {
+        background: #f57c00;
+    }
+    
+    .btn-save {
+        background: #2196F3;
+        color: white;
+    }
+    
+    .btn-save:hover {
+        background: #1976D2;
+    }
+    
+    .loading-spinner {
+        display: none;
+        text-align: center;
+        padding: 40px;
+    }
+    
+    .spinner {
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #2196F3;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .quick-commands {
+        margin-bottom: 20px;
+    }
+    
+    .command-chip {
+        display: inline-block;
+        background: #e3f2fd;
+        color: #1976d2;
+        padding: 6px 12px;
+        margin: 4px;
+        border-radius: 16px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .command-chip:hover {
+        background: #1976d2;
+        color: white;
+    }
+    
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-item {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        opacity: 0.9;
+    }
+    
+    @media (max-width: 768px) {
+        .studio-container {
+            grid-template-columns: 1fr;
+            height: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="material-icons">psychology</i> AI工作室</h1>
+    <p>上传截图，让AI理解并自动执行你的操作指令</p>
+</div>
+
+<div class="stats-row">
+    <div class="stat-item">
+        <div class="stat-value" id="totalAnalysis">0</div>
+        <div class="stat-label">总分析次数</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value" id="successRate">0%</div>
+        <div class="stat-label">成功率</div>
+    </div>
+    <div class="stat-item">
+        <div class="stat-value" id="avgTime">0ms</div>
+        <div class="stat-label">平均响应时间</div>
+    </div>
+</div>
+
+<div class="studio-container">
+    <!-- 左侧：上传和控制区域 -->
+    <div class="upload-section">
+        <h3><i class="material-icons">cloud_upload</i> 截图上传</h3>
+        
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">
+                <i class="material-icons">add_photo_alternate</i>
+            </div>
+            <h4>点击或拖拽上传截图</h4>
+            <p>支持 PNG, JPG, JPEG 格式</p>
+        </div>
+        
+        <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        
+        <div id="previewArea" style="display: none;">
+            <img id="screenshotPreview" class="screenshot-preview">
+            <button onclick="clearImage()" class="btn btn-secondary btn-sm">
+                <i class="material-icons">clear</i> 清除图片
+            </button>
+        </div>
+        
+        <h4><i class="material-icons">chat</i> 操作指令</h4>
+        
+        <div class="quick-commands">
+            <span class="command-chip" onclick="setInstruction('点击登录按钮')">点击登录按钮</span>
+            <span class="command-chip" onclick="setInstruction('最大化当前窗口')">最大化窗口</span>
+            <span class="command-chip" onclick="setInstruction('在搜索框输入Python')">搜索Python</span>
+            <span class="command-chip" onclick="setInstruction('右键点击桌面')">右键菜单</span>
+            <span class="command-chip" onclick="setInstruction('滚动页面向下')">向下滚动</span>
+            <span class="command-chip" onclick="setInstruction('关闭当前标签页')">关闭标签</span>
+        </div>
+        
+        <textarea 
+            id="instructionInput" 
+            class="instruction-input" 
+            placeholder="请描述你想要执行的操作，例如：&#10;• 点击登录按钮&#10;• 在搜索框输入'Python教程'&#10;• 滚动页面到底部&#10;• 最大化当前窗口"></textarea>
+        
+        <button id="analyzeBtn" class="analyze-btn" onclick="analyzeScreenshot()">
+            <i class="material-icons">psychology</i> 开始AI分析
+        </button>
+        
+        <div class="loading-spinner" id="loadingSpinner">
+            <div class="spinner"></div>
+            <p>AI正在分析截图，请稍候...</p>
+        </div>
+    </div>
+    
+    <!-- 右侧：结果展示区域 -->
+    <div class="results-section">
+        <h3><i class="material-icons">analytics</i> 分析结果</h3>
+        
+        <div id="resultsContainer">
+            <div class="empty-state" style="text-align: center; padding: 60px 20px; color: #666;">
+                <i class="material-icons" style="font-size: 64px; color: #ddd; margin-bottom: 20px;">psychology</i>
+                <h4>等待AI分析</h4>
+                <p>上传截图并输入操作指令，AI将为你生成自动化代码</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAnalysisResult = null;
+let analysisHistory = [];
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    setupDragAndDrop();
+    loadStats();
+});
+
+// 设置拖拽上传
+function setupDragAndDrop() {
+    const uploadArea = document.getElementById('uploadArea');
+    
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            handleFileSelect(files[0]);
+        }
+    });
+    
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0]);
+        }
+    });
+}
+
+// 处理文件选择
+function handleFileSelect(file) {
+    if (!file.type.startsWith('image/')) {
+        showError('请选择图片文件');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.getElementById('screenshotPreview');
+        preview.src = e.target.result;
+        document.getElementById('previewArea').style.display = 'block';
+        document.getElementById('uploadArea').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+}
+
+// 清除图片
+function clearImage() {
+    document.getElementById('previewArea').style.display = 'none';
+    document.getElementById('uploadArea').style.display = 'block';
+    document.getElementById('fileInput').value = '';
+}
+
+// 设置快捷指令
+function setInstruction(instruction) {
+    document.getElementById('instructionInput').value = instruction;
+}
+
+// AI分析截图
+async function analyzeScreenshot() {
+    const fileInput = document.getElementById('fileInput');
+    const instruction = document.getElementById('instructionInput').value.trim();
+    
+    if (!fileInput.files[0]) {
+        showError('请先上传截图');
+        return;
+    }
+    
+    if (!instruction) {
+        showError('请输入操作指令');
+        return;
+    }
+    
+    // 显示加载状态
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('loadingSpinner').style.display = 'block';
+    
+    try {
+        const formData = new FormData();
+        formData.append('screenshot', fileInput.files[0]);
+        formData.append('instruction', instruction);
+        
+        const startTime = Date.now();
+        const response = await fetch('/api/ai/analyze', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        const processingTime = Date.now() - startTime;
+        
+        if (result.success) {
+            currentAnalysisResult = result;
+            displayAnalysisResult(result, processingTime);
+            
+            // 更新统计
+            analysisHistory.push({
+                success: true,
+                processingTime: processingTime,
+                timestamp: new Date()
+            });
+            updateStats();
+        } else {
+            showError('AI分析失败: ' + result.error);
+            analysisHistory.push({
+                success: false,
+                processingTime: processingTime,
+                timestamp: new Date()
+            });
+            updateStats();
+        }
+    } catch (error) {
+        console.error('AI分析错误:', error);
+        showError('网络错误，请重试');
+    } finally {
+        document.getElementById('analyzeBtn').disabled = false;
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
+}
+
+// 显示分析结果
+function displayAnalysisResult(result, processingTime) {
+    const container = document.getElementById('resultsContainer');
+    
+    const resultHtml = `
+        <div class="result-card">
+            <div class="result-header">
+                <div class="result-icon">
+                    <i class="material-icons">psychology</i>
+                </div>
+                <div>
+                    <h4>AI分析完成</h4>
+                    <small>处理时间: ${processingTime}ms</small>
+                </div>
+            </div>
+            
+            <div class="thought-section">
+                <h5><i class="material-icons">lightbulb</i> AI思考过程</h5>
+                <p>${result.parsed_action.thought || '无'}</p>
+            </div>
+            
+            <div>
+                <h5><i class="material-icons">settings</i> 识别操作</h5>
+                <p><strong>动作类型:</strong> ${result.parsed_action.action || '无'}</p>
+                ${result.parsed_action.content ? `<p><strong>输入内容:</strong> ${result.parsed_action.content}</p>` : ''}
+                ${result.parsed_action.start_box ? `<p><strong>目标坐标:</strong> ${JSON.stringify(result.parsed_action.start_box)}</p>` : ''}
+            </div>
+            
+            ${result.pyautogui_code && result.pyautogui_code !== '# 无可执行的操作' ? `
+                <div>
+                    <h5><i class="material-icons">code</i> 生成代码</h5>
+                    <div class="code-section">${escapeHtml(result.pyautogui_code)}</div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="action-btn btn-preview" onclick="previewExecution()">
+                        <i class="material-icons">visibility</i> 预览执行
+                    </button>
+                    <button class="action-btn btn-execute" onclick="executeAction(false)">
+                        <i class="material-icons">play_arrow</i> 演练模式
+                    </button>
+                    <button class="action-btn btn-execute" onclick="executeAction(true)" style="background: #f44336;">
+                        <i class="material-icons">flash_on</i> 实际执行
+                    </button>
+                    <button class="action-btn btn-save" onclick="saveAsTask()">
+                        <i class="material-icons">save</i> 保存为任务
+                    </button>
+                </div>
+            ` : '<p style="color: #666; font-style: italic;">未生成可执行代码</p>'}
+        </div>
+    `;
+    
+    container.innerHTML = resultHtml;
+}
+
+// 预览执行
+function previewExecution() {
+    if (!currentAnalysisResult) return;
+    
+    const code = currentAnalysisResult.pyautogui_code;
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 800px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3><i class="material-icons">preview</i> 代码预览</h3>
+                <button onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            
+            <div class="code-section" style="max-height: 400px; overflow-y: auto;">
+                ${escapeHtml(code)}
+            </div>
+            
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                <p style="color: #666; font-size: 14px;">
+                    <i class="material-icons" style="font-size: 16px; vertical-align: middle;">info</i>
+                    这段代码将在目标设备上执行，请确认操作无误后再执行。
+                </p>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// 执行AI操作
+async function executeAction(isDryRun = true) {
+    if (!currentAnalysisResult) {
+        showError('没有可执行的分析结果');
+        return;
+    }
+    
+    const confirmMsg = isDryRun ? 
+        '确定要在演练模式下执行此操作吗？（不会实际操作设备）' : 
+        '⚠️ 确定要实际执行此操作吗？这将在真实设备上执行操作！';
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    try {
+        showInfo(isDryRun ? '正在演练执行...' : '正在实际执行操作...');
+        
+        const response = await fetch('/api/ai/execute', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                analysis_result: currentAnalysisResult,
+                dry_run: isDryRun
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const message = isDryRun ? 
+                '演练执行完成！代码已验证无误。' : 
+                '操作执行完成！耗时: ' + (result.execution_time_ms || 0) + 'ms';
+            showSuccess(message);
+        } else {
+            showError('执行失败: ' + result.error);
+        }
+    } catch (error) {
+        console.error('执行操作失败:', error);
+        showError('网络错误，请重试');
+    }
+}
+
+// 保存为任务
+async function saveAsTask() {
+    if (!currentAnalysisResult) {
+        showError('没有可保存的分析结果');
+        return;
+    }
+    
+    const taskName = prompt('请输入任务名称:', '自动化任务_' + new Date().toLocaleString());
+    if (!taskName) return;
+    
+    try {
+        const response = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                task_name: taskName,
+                natural_language_input: currentAnalysisResult.user_instruction,
+                task_description: `AI生成的自动化任务: ${currentAnalysisResult.parsed_action.action}`
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccess('任务保存成功！任务ID: ' + result.task_id);
+        } else {
+            showError('保存任务失败: ' + result.message);
+        }
+    } catch (error) {
+        console.error('保存任务失败:', error);
+        showError('网络错误，请重试');
+    }
+}
+
+// 更新统计信息
+function updateStats() {
+    const total = analysisHistory.length;
+    const successful = analysisHistory.filter(h => h.success).length;
+    const successRate = total > 0 ? (successful / total * 100).toFixed(1) : 0;
+    const avgTime = total > 0 ? Math.round(analysisHistory.reduce((sum, h) => sum + h.processingTime, 0) / total) : 0;
+    
+    document.getElementById('totalAnalysis').textContent = total;
+    document.getElementById('successRate').textContent = successRate + '%';
+    document.getElementById('avgTime').textContent = avgTime + 'ms';
+    
+    // 保存到本地存储
+    localStorage.setItem('trustee_ai_stats', JSON.stringify(analysisHistory));
+}
+
+// 加载统计信息
+function loadStats() {
+    const savedStats = localStorage.getItem('trustee_ai_stats');
+    if (savedStats) {
+        analysisHistory = JSON.parse(savedStats);
+        updateStats();
+    }
+}
+
+// 工具函数
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML.replace(/\n/g, '<br>');
+}
+
+function showSuccess(message) {
+    alert('✅ ' + message);
+}
+
+function showError(message) {
+    alert('❌ ' + message);
+}
+
+function showInfo(message) {
+    alert('ℹ️ ' + message);
+}
+</script>
+{% endblock %} 
