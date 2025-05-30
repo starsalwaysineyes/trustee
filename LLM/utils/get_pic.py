@@ -10,9 +10,16 @@ def capture_full_screen(imgpath: str):
     try:
         # 截取整个屏幕
         im = ImageGrab.grab()
+        # 获取原始尺寸
+        original_width, original_height = im.size
+        # 计算新尺寸
+        new_width = int(original_width * 0.5)
+        new_height = int(original_height * 0.5)
+        # 缩放图像
+        resized_im = im.resize((new_width, new_height))
         # 保存图像
-        im.save(imgpath)
-        print(f"屏幕截图已保存到: {imgpath}")
+        resized_im.save(imgpath)
+        print(f"屏幕截图已缩放并保存到: {imgpath}")
     except Exception as e:
         print(f"截图失败: {e}")
 

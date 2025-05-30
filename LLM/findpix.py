@@ -192,7 +192,7 @@ if __name__ == "__main__":
         print(f"已在 {output_img_path} 上标记红点")
 
         # 第二个问题，利用上下文记忆
-        prompt2 = "确认是否是这个地方，我在图片中用红点标记了你给的坐标,如果精准，在json中返回find=true,否则返回find=false和新的x1和y1，x2,y2,新的坐标应该按照相对位置进行微调，而不是重新计算，注意这里先明确往哪里偏，然后去返回新的坐标"
+        prompt2 = "确认是否是这个地方，我在图片中用红点标记了你给的坐标,如果精准，在json中返回find=true,否则返回find=false和新的x1和y1，x2,y2,新的坐标应该按照相对位置进行微调，而不是重新计算，注意这里先明确往哪里偏，然后去返回新的坐标,注意，屏幕左上角是0,0"
         print(f"用户 (图片: {os.path.basename(output_img_path)}): {prompt2}")
         response2 = image_qa_session.ask_img(text_prompt=prompt2, image_path=output_img_path) # 使用带红点的新图片
         print(f"助手: {response2}")
