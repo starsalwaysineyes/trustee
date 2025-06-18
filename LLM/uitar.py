@@ -199,24 +199,6 @@ def calculate_drag_endpoint(start_point, direction, length):
     else:
         return (x, y)  # 默认不移动
 
-def image_to_base64(image_path):
-    ext = Path(image_path).suffix.lower()
-    mime_types = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.bmp': 'image/bmp',
-        '.tiff': 'image/tiff',
-        '.svg': 'image/svg+xml',
-    }
-    with open(image_path, "rb") as image_file:
-        binary_data = image_file.read()
-        base64_data = base64.b64encode(binary_data).decode("utf-8")
-    return f"data:{mime_types.get(ext, 'image/png')};base64,{base64_data}"
-
-
 def run(img_path, user_prompt):
     # ark_api_key = os.environ.get("ARK_API_KEY")
     ark_api_key = "53008c87-b444-41c2-8515-88db94d60162"
@@ -242,7 +224,7 @@ def run(img_path, user_prompt):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": image_to_base64(img_path)
+                                "url": image_to_base64_from_path(img_path)
                             }
                         }
                     ]
@@ -255,9 +237,21 @@ def run(img_path, user_prompt):
     except ArkAPIError as e:
         print(e)
 
+def image_to_base64_from_path(image_path):
+    """从文件路径读取图片并转为Base64 Data URL"""
+    import mimetypes
+    mime_type, _ = mimetypes.guess_type(image_path)
+    if mime_type is None:
+        mime_type = 'application/octet-stream' # Fallback
+    
+    with open(image_path, "rb") as image_file:
+        binary_data = image_file.read()
+    
+    base64_data = base64.b64encode(binary_data).decode("utf-8")
+    return f"data:{mime_type};base64,{base64_data}"
 
 if __name__ == "__main__":
-    image_path = "D:\Code\综合项目实践\\trustee\LLM\pics\\test1.png"
+    image_path = r"D:\Code\综合项目实践\trustee\LLM\pics\test1.png"
     image_path = "LLM/pics/test1.png"
     model_response = run(image_path, "帮我最大化typora的窗口")
     parsed_output = json.loads(parse_action_output(model_response))

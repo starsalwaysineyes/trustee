@@ -300,6 +300,13 @@
             <p>支持 PNG, JPG, JPEG 格式</p>
         </div>
         
+        <div style="margin: 15px 0; text-align: center;">
+            <button id="autoScreenshotBtn" class="btn btn-primary" onclick="captureScreenshot()" style="background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; transition: all 0.3s ease;">
+                <i class="material-icons" style="font-size: 18px; vertical-align: middle; margin-right: 5px;">camera_alt</i>
+                自动截图
+            </button>
+        </div>
+        
         <input type="file" id="fileInput" accept="image/*" style="display: none;">
         
         <div id="previewArea" style="display: none;">
@@ -324,6 +331,43 @@
             id="instructionInput" 
             class="instruction-input" 
             placeholder="请描述你想要执行的操作，例如：&#10;• 点击登录按钮&#10;• 在搜索框输入'Python教程'&#10;• 滚动页面到底部&#10;• 最大化当前窗口"></textarea>
+        
+        <!-- 执行设置 -->
+        <div class="execution-settings" style="margin: 15px 0; padding: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #4CAF50;">
+            <!-- 分辨率选择 -->
+            <div style="margin-bottom: 15px;">
+                <label style="display: flex; align-items: center; font-size: 14px; color: #666; margin-bottom: 5px;">
+                    <i class="material-icons" style="font-size: 18px; margin-right: 5px; color: #2196F3;">monitor</i>
+                    目标分辨率
+                </label>
+                <select id="targetResolution" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; background: white;">
+                    <option value="auto">自动检测</option>
+                    <option value="1920x1080">1920×1080 (Full HD)</option>
+                    <option value="2560x1440">2560×1440 (2K)</option>
+                    <option value="2560x1600">2560×1600 (16:10)</option>
+                    <option value="3840x2160">3840×2160 (4K)</option>
+                    <option value="1366x768">1366×768 (HD)</option>
+                    <option value="1680x1050">1680×1050 (16:10)</option>
+                    <option value="1440x900">1440×900 (16:10)</option>
+                    <option value="1600x900">1600×900 (16:9)</option>
+                    <option value="1920x1200">1920×1200 (16:10)</option>
+                    <option value="3440x1440">3440×1440 (超宽屏)</option>
+                </select>
+                <small style="display: block; margin-top: 3px; color: #999; font-style: italic;">
+                    选择目标设备的分辨率，坐标将从1000×1000标准基准缩放到此分辨率
+                </small>
+            </div>
+            
+            <!-- 跳过确认选项 -->
+            <label style="display: flex; align-items: center; font-size: 14px; color: #666; cursor: pointer;">
+                <input type="checkbox" id="skipConfirmation" style="margin-right: 8px; transform: scale(1.1);">
+                <i class="material-icons" style="font-size: 18px; margin-right: 5px; color: #4CAF50;">flash_off</i>
+                跳过实际执行确认（自动执行模式）
+            </label>
+            <small style="display: block; margin-top: 5px; color: #999; font-style: italic;">
+                勾选后，点击"实际执行"将不再显示确认对话框，直接执行操作
+            </small>
+        </div>
         
         <button id="analyzeBtn" class="analyze-btn" onclick="analyzeScreenshot()">
             <i class="material-icons">psychology</i> 开始AI分析
@@ -357,7 +401,21 @@ let analysisHistory = [];
 document.addEventListener('DOMContentLoaded', function() {
     setupDragAndDrop();
     loadStats();
+    loadResolutionSetting();
 });
+
+// 加载分辨率设置
+function loadResolutionSetting() {
+    const savedResolution = localStorage.getItem('trustee_target_resolution');
+    if (savedResolution) {
+        document.getElementById('targetResolution').value = savedResolution;
+    }
+    
+    // 监听分辨率选择变化
+    document.getElementById('targetResolution').addEventListener('change', function() {
+        localStorage.setItem('trustee_target_resolution', this.value);
+    });
+}
 
 // 设置拖拽上传
 function setupDragAndDrop() {
@@ -419,6 +477,80 @@ function setInstruction(instruction) {
     document.getElementById('instructionInput').value = instruction;
 }
 
+// 获取选择的分辨率
+function getSelectedResolution() {
+    const select = document.getElementById('targetResolution');
+    return select.value;
+}
+
+// 解析分辨率字符串
+function parseResolution(resolutionStr) {
+    if (resolutionStr === 'auto') {
+        return { width: 'auto', height: 'auto' };
+    }
+    const [width, height] = resolutionStr.split('x').map(Number);
+    return { width, height };
+}
+
+// 自动截图功能
+async function captureScreenshot() {
+    const btn = document.getElementById('autoScreenshotBtn');
+    const originalText = btn.innerHTML;
+    
+    try {
+        // 更新按钮状态
+        btn.disabled = true;
+        btn.innerHTML = '<i class="material-icons">hourglass_empty</i> 正在截图...';
+        
+        // 调用服务器端截图API
+        const response = await fetch('/api/screenshot/capture', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                delay: 1000  // 1秒延迟，让用户准备
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 显示截图预览
+            const preview = document.getElementById('screenshotPreview');
+            preview.src = result.screenshot_url + '?t=' + Date.now(); // 添加时间戳避免缓存
+            document.getElementById('previewArea').style.display = 'block';
+            document.getElementById('uploadArea').style.display = 'none';
+            
+            // 创建虚拟文件对象用于后续上传
+            const response_img = await fetch(result.screenshot_url);
+            const blob = await response_img.blob();
+            const file = new File([blob], result.filename, { type: 'image/png' });
+            
+            // 更新文件输入
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            document.getElementById('fileInput').files = dt.files;
+            
+            // 不显示成功提示，用户可以从预览图看到截图已完成
+        } else {
+            throw new Error(result.message || '截图失败');
+        }
+        
+    } catch (error) {
+        console.error('自动截图失败:', error);
+        showError('自动截图失败: ' + error.message);
+    } finally {
+        // 恢复按钮状态
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 // AI分析截图
 async function analyzeScreenshot() {
     const fileInput = document.getElementById('fileInput');
@@ -435,13 +567,19 @@ async function analyzeScreenshot() {
     }
     
     // 显示加载状态
-    document.getElementById('analyzeBtn').disabled = true;
-    document.getElementById('loadingSpinner').style.display = 'block';
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    analyzeBtn.disabled = true;
+    loadingSpinner.style.display = 'block';
     
     try {
         const formData = new FormData();
         formData.append('screenshot', fileInput.files[0]);
         formData.append('instruction', instruction);
+        
+        // 添加分辨率信息
+        const resolution = getSelectedResolution();
+        formData.append('target_resolution', resolution);
         
         const startTime = Date.now();
         const response = await fetch('/api/ai/analyze', {
@@ -463,8 +601,25 @@ async function analyzeScreenshot() {
                 timestamp: new Date()
             });
             updateStats();
+
+            // 核心更新：检查并显示Base64格式的标注图片
+            if (result.annotated_screenshot_base64) {
+                const previewImage = document.getElementById('screenshotPreview');
+                
+                // 直接将src设置为Base64数据
+                previewImage.src = result.annotated_screenshot_base64;
+                // alert('AI分析完成，已在图中标注操作位置！'); // 去除弹窗
+
+            } else if (result.annotated_filename) {
+                // 保留对旧格式的兼容，以防万一
+                const previewImage = document.getElementById('screenshotPreview');
+                const annotatedImageUrl = `/api/screenshot/${result.annotated_filename}?t=${new Date().getTime()}`;
+                previewImage.src = annotatedImageUrl;
+                // alert('AI分析完成，已在图中标注操作位置！'); // 去除弹窗
+            }
+
         } else {
-            showError('AI分析失败: ' + result.error);
+            showError('AI分析失败: ' + (result.error || '未知错误'));
             analysisHistory.push({
                 success: false,
                 processingTime: processingTime,
@@ -474,66 +629,92 @@ async function analyzeScreenshot() {
         }
     } catch (error) {
         console.error('AI分析错误:', error);
-        showError('网络错误，请重试');
+        showError('网络或脚本错误，请检查控制台');
     } finally {
-        document.getElementById('analyzeBtn').disabled = false;
-        document.getElementById('loadingSpinner').style.display = 'none';
+        analyzeBtn.disabled = false;
+        loadingSpinner.style.display = 'none';
     }
 }
 
-// 显示分析结果
+// 使用DOM操作重构，以确保事件监听器正确绑定
 function displayAnalysisResult(result, processingTime) {
     const container = document.getElementById('resultsContainer');
-    
-    const resultHtml = `
-        <div class="result-card">
-            <div class="result-header">
-                <div class="result-icon">
-                    <i class="material-icons">psychology</i>
-                </div>
-                <div>
-                    <h4>AI分析完成</h4>
-                    <small>处理时间: ${processingTime}ms</small>
-                </div>
-            </div>
-            
-            <div class="thought-section">
-                <h5><i class="material-icons">lightbulb</i> AI思考过程</h5>
-                <p>${result.parsed_action.thought || '无'}</p>
-            </div>
-            
+    container.innerHTML = ''; // 清空旧内容
+
+    const card = document.createElement('div');
+    card.className = 'result-card';
+
+    // Header
+    card.innerHTML += `
+        <div class="result-header">
+            <div class="result-icon"><i class="material-icons">psychology</i></div>
             <div>
-                <h5><i class="material-icons">settings</i> 识别操作</h5>
-                <p><strong>动作类型:</strong> ${result.parsed_action.action || '无'}</p>
-                ${result.parsed_action.content ? `<p><strong>输入内容:</strong> ${result.parsed_action.content}</p>` : ''}
-                ${result.parsed_action.start_box ? `<p><strong>目标坐标:</strong> ${JSON.stringify(result.parsed_action.start_box)}</p>` : ''}
+                <h4>AI分析完成</h4>
+                <small>处理时间: ${processingTime}ms</small>
             </div>
-            
-            ${result.pyautogui_code && result.pyautogui_code !== '# 无可执行的操作' ? `
-                <div>
-                    <h5><i class="material-icons">code</i> 生成代码</h5>
-                    <div class="code-section">${escapeHtml(result.pyautogui_code)}</div>
-                </div>
-                
-                <div class="action-buttons">
-                    <button class="action-btn btn-preview" onclick="previewExecution()">
-                        <i class="material-icons">visibility</i> 预览执行
-                    </button>
-                    <button class="action-btn btn-execute" onclick="executeAction(false)">
-                        <i class="material-icons">play_arrow</i> 演练模式
-                    </button>
-                    <button class="action-btn btn-execute" onclick="executeAction(true)" style="background: #f44336;">
-                        <i class="material-icons">flash_on</i> 实际执行
-                    </button>
-                    <button class="action-btn btn-save" onclick="saveAsTask()">
-                        <i class="material-icons">save</i> 保存为任务
-                    </button>
-                </div>
-            ` : '<p style="color: #666; font-style: italic;">未生成可执行代码</p>'}
+        </div>
+        <div class="thought-section">
+            <h5><i class="material-icons">lightbulb</i> AI思考过程</h5>
+            <p>${result.parsed_action.thought || '无'}</p>
+        </div>
+        <div>
+            <h5><i class="material-icons">settings</i> 识别操作</h5>
+            <p><strong>动作类型:</strong> ${result.parsed_action.action || '无'}</p>
+            ${result.parsed_action.content ? `<p><strong>输入内容:</strong> ${escapeHtml(result.parsed_action.content)}</p>` : ''}
+            ${result.parsed_action.start_box ? `<p><strong>标准坐标:</strong> ${JSON.stringify(result.parsed_action.start_box)} (基于1000×1000)</p>` : ''}
+            ${result.target_resolution ? `<p><strong>目标分辨率:</strong> ${result.target_resolution}</p>` : ''}
         </div>
     `;
-    
-    container.innerHTML = resultHtml;
+
+    // Code Section
+    if (result.pyautogui_code && result.pyautogui_code !== '# 无可执行的操作') {
+        const codeDiv = document.createElement('div');
+        codeDiv.innerHTML = `<h5><i class="material-icons">code</i> 生成代码</h5>`;
+        const codeSection = document.createElement('div');
+        codeSection.className = 'code-section';
+        codeSection.innerHTML = escapeHtml(result.pyautogui_code);
+        codeDiv.appendChild(codeSection);
+        card.appendChild(codeDiv);
+
+        // Action Buttons
+        const buttonsDiv = document.createElement('div');
+        buttonsDiv.className = 'action-buttons';
+
+        // Preview Button
+        const previewBtn = document.createElement('button');
+        previewBtn.className = 'action-btn btn-preview';
+        previewBtn.innerHTML = `<i class="material-icons">visibility</i> 预览执行`;
+        previewBtn.onclick = previewExecution;
+        buttonsDiv.appendChild(previewBtn);
+
+        // Dry Run Button
+        const dryRunBtn = document.createElement('button');
+        dryRunBtn.className = 'action-btn btn-execute';
+        dryRunBtn.innerHTML = `<i class="material-icons">play_arrow</i> 演练模式`;
+        dryRunBtn.onclick = () => executeAction(true);
+        buttonsDiv.appendChild(dryRunBtn);
+        
+        // Execute Button
+        const executeBtn = document.createElement('button');
+        executeBtn.className = 'action-btn btn-execute';
+        executeBtn.style.background = '#f44336';
+        executeBtn.innerHTML = `<i class="material-icons">flash_on</i> 实际执行`;
+        executeBtn.onclick = () => executeAction(false);
+        buttonsDiv.appendChild(executeBtn);
+
+        // Save Task Button
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'action-btn btn-save';
+        saveBtn.innerHTML = `<i class="material-icons">save</i> 保存为任务`;
+        saveBtn.onclick = saveAsTask;
+        buttonsDiv.appendChild(saveBtn);
+        
+        card.appendChild(buttonsDiv);
+    } else {
+        card.innerHTML += '<p style="color: #666; font-style: italic;">未生成可执行代码</p>';
+    }
+
+    container.appendChild(card);
 }
 
 // 预览执行
@@ -574,16 +755,31 @@ async function executeAction(isDryRun = true) {
         return;
     }
     
-    const confirmMsg = isDryRun ? 
-        '确定要在演练模式下执行此操作吗？（不会实际操作设备）' : 
-        '⚠️ 确定要实际执行此操作吗？这将在真实设备上执行操作！';
+    // 检查是否跳过确认
+    const skipConfirmation = document.getElementById('skipConfirmation').checked;
     
-    if (!confirm(confirmMsg)) {
-        return;
+    // 根据模式和设置决定是否需要确认
+    let needConfirmation = true;
+    if (isDryRun) {
+        // 演练模式总是需要确认
+        needConfirmation = true;
+    } else {
+        // 实际执行模式：如果勾选了跳过确认，则不需要确认
+        needConfirmation = !skipConfirmation;
+    }
+    
+    if (needConfirmation) {
+        const confirmMsg = isDryRun ? 
+            '确定要在演练模式下执行此操作吗？（不会实际操作设备）' : 
+            '⚠️ 确定要实际执行此操作吗？这将在真实设备上执行操作！';
+        
+        if (!confirm(confirmMsg)) {
+            return;
+        }
     }
     
     try {
-        showInfo(isDryRun ? '正在演练执行...' : '正在实际执行操作...');
+        // 静默执行，不显示执行进度提示
         
         const response = await fetch('/api/ai/execute', {
             method: 'POST',
@@ -599,10 +795,14 @@ async function executeAction(isDryRun = true) {
         const result = await response.json();
         
         if (result.success) {
-            const message = isDryRun ? 
-                '演练执行完成！代码已验证无误。' : 
-                '操作执行完成！耗时: ' + (result.execution_time_ms || 0) + 'ms';
-            showSuccess(message);
+            // 不显示执行完成提示，直接进行自动截图
+            if (!isDryRun) {
+                // 实际执行完成后自动截图
+                setTimeout(() => {
+                    captureScreenshot();
+                }, 500); // 延迟500ms让操作完全完成
+            }
+            // 演练模式不自动截图，只是静默完成
         } else {
             showError('执行失败: ' + result.error);
         }
@@ -688,7 +888,7 @@ function showError(message) {
 }
 
 function showInfo(message) {
-    alert('ℹ️ ' + message);
+    // alert('ℹ️ ' + message);
 }
 </script>
 {% endblock %} 

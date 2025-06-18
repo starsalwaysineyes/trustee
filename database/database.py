@@ -209,6 +209,21 @@ class DatabaseManager:
                 )
             """)
             
+            # 创建分析日志表 (AnalysisLog)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS analysis_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    timestamp TIMESTAMP NOT NULL,
+                    user_instruction TEXT NOT NULL,
+                    original_screenshot_base64 TEXT,
+                    annotated_screenshot_base64 TEXT,
+                    analysis_result_json TEXT NOT NULL,
+                    target_resolution TEXT,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
+                )
+            """)
+            
             conn.commit()
             self.create_indexes(cursor)
             conn.commit()
@@ -222,7 +237,8 @@ class DatabaseManager:
             "CREATE INDEX IF NOT EXISTS idx_steps_task_sequence ON task_steps(task_id, step_sequence)",
             "CREATE INDEX IF NOT EXISTS idx_analysis_task_timestamp ON ai_analysis(task_id, analysis_timestamp)",
             "CREATE INDEX IF NOT EXISTS idx_executions_task_timestamp ON executions(task_id, execution_timestamp)",
-            "CREATE INDEX IF NOT EXISTS idx_screenshots_task_timestamp ON screenshots(task_id, capture_timestamp)"
+            "CREATE INDEX IF NOT EXISTS idx_screenshots_task_timestamp ON screenshots(task_id, capture_timestamp)",
+            "CREATE INDEX IF NOT EXISTS idx_analysis_log_user_timestamp ON analysis_log(user_id, timestamp)"
         ]
         
         for index_sql in indexes:

@@ -3,7 +3,7 @@ Trustee 后端API服务
 整合数据库操作、AI自动化和任务管理功能
 """
 
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
 from flask_cors import CORS
 import os
 import json
@@ -11,10 +11,13 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import traceback
+from functools import wraps
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 
 # 导入数据库模块
 from database.database import db_manager
-from database.dao import TaskDAO, TaskStepDAO, ScreenshotDAO, AIAnalysisDAO, ExecutionDAO, UserDAO, DeviceDAO
+from database.dao import TaskDAO, TaskStepDAO, ScreenshotDAO, AIAnalysisDAO, ExecutionDAO, UserDAO, DeviceDAO, AnalysisLogDAO
 from database.models import Task, TaskStep, Screenshot, AIAnalysis, Execution, User, Device
 from database.workflow_service import WorkflowService
 
@@ -501,72 +504,137 @@ def update_task(task_id):
 # ==================== AI自动化API ====================
 
 @app.route('/api/ai/analyze', methods=['POST'])
-def ai_analyze_screenshot():
-    """AI分析截图"""
-    try:
-        user_id = session.get('user_id')
-        if not user_id:
-            return jsonify({'success': False, 'message': '请先登录'}), 401
+def analyze_screenshot_api():
+    """AI分析截图的API端点"""
+    if 'screenshot' not in request.files:
+        return jsonify({"success": False, "error": "缺少截图文件"}), 400
+    
+    screenshot = request.files['screenshot']
+    instruction = request.form.get('instruction')
+    target_resolution = request.form.get('target_resolution', 'auto')
+    # 如果未登录，默认使用 user_id=1 (管理员)
+    user_id = session.get('user_id', 1)
+
+    if not instruction:
+        return jsonify({"success": False, "error": "缺少操作指令"}), 400
+
+    # 保存截图文件
+    screenshots_dir = app.config.get('SCREENSHOTS_FOLDER', 'screenshots')
+    if not os.path.exists(screenshots_dir):
+        os.makedirs(screenshots_dir)
         
-        # 处理文件上传或接收base64图片
-        if 'screenshot' in request.files:
-            file = request.files['screenshot']
-            if file.filename == '':
-                return jsonify({'success': False, 'message': '未选择文件'}), 400
-            
-            # 保存上传的图片
-            filename = f"temp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
-            filepath = os.path.join(workflow_service.screenshot_dir, filename)
-            file.save(filepath)
-        else:
-            data = request.get_json()
-            filepath = data.get('image_path')
-            if not filepath or not os.path.exists(filepath):
-                return jsonify({'success': False, 'message': '图片路径无效'}), 400
-        
-        instruction = request.form.get('instruction') or request.get_json().get('instruction')
-        if not instruction:
-            return jsonify({'success': False, 'message': '请提供操作指令'}), 400
-        
-        # AI分析
-        result = ai_automation_service.analyze_screenshot(
-            image_path=filepath,
-            user_instruction=instruction,
-            show_visualization=False
-        )
-        
-        return jsonify(result)
-        
-    except Exception as e:
-        logger.error(f"AI分析错误: {str(e)}")
-        return jsonify({'success': False, 'message': 'AI分析失败', 'error': str(e)}), 500
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"upload_{user_id}_{timestamp}_{secure_filename(screenshot.filename)}"
+    filepath = os.path.join(screenshots_dir, filename)
+    screenshot.save(filepath)
+
+    # 调用AI服务进行分析
+    analysis_result = ai_automation_service.analyze_screenshot(
+        user_id=user_id,
+        image_path=filepath,
+        user_instruction=instruction,
+        target_resolution=target_resolution
+    )
+
+    if analysis_result.get("success"):
+        return jsonify(analysis_result)
+    else:
+        return jsonify({"success": False, "error": analysis_result.get("error", "未知错误")}), 500
 
 @app.route('/api/ai/execute', methods=['POST'])
 def ai_execute_action():
     """执行AI生成的操作"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'message': '缺少分析结果'}), 400
+    
+    analysis_result = data.get('analysis_result')
+    dry_run = data.get('dry_run', True)
+    
+    # 执行操作
+    execution_result = ai_automation_service.execute_actions(
+        analysis_result=analysis_result,
+        dry_run=dry_run
+    )
+    
+    return jsonify(execution_result)
+
+@app.route('/api/screenshot/capture', methods=['POST'])
+def capture_screenshot():
+    """自动截图API"""
     try:
         user_id = session.get('user_id')
         if not user_id:
             return jsonify({'success': False, 'message': '请先登录'}), 401
         
-        data = request.get_json()
-        analysis_result = data.get('analysis_result')
-        dry_run = data.get('dry_run', True)
+        data = request.get_json() or {}
+        delay = data.get('delay', 1000)  # 默认1秒延迟
         
-        if not analysis_result:
-            return jsonify({'success': False, 'message': '缺少分析结果'}), 400
+        # 延迟一段时间，让用户准备
+        import time
+        time.sleep(delay / 1000.0)
         
-        # 执行操作
-        execution_result = ai_automation_service.execute_actions(
-            analysis_result=analysis_result,
-            dry_run=dry_run
-        )
+        # 使用项目优化的截图工具模块
+        from utils.screenshot_utils import capture_screen_with_fallback, generate_screenshot_filename
         
-        return jsonify(execution_result)
+        # 生成文件名
+        filename = generate_screenshot_filename("auto_screenshot")
+        filepath = os.path.join(workflow_service.screenshot_dir, filename)
+        
+        # 使用带备用方案的截图功能
+        success, screenshot, method_used = capture_screen_with_fallback(filepath)
+        
+        if not success:
+            raise Exception("所有截图方法都失败了，请检查系统权限和环境配置")
+        
+        logger.info(f"截图成功，使用方法: {method_used}, 文件: {filename}")
+        
+        # 生成访问URL
+        screenshot_url = f"/api/screenshot/{filename}"
+        
+        return jsonify({
+            'success': True,
+            'message': '截图成功',
+            'filename': filename,
+            'filepath': filepath,
+            'screenshot_url': screenshot_url
+        })
         
     except Exception as e:
-        logger.error(f"执行AI操作错误: {str(e)}")
-        return jsonify({'success': False, 'message': '执行操作失败', 'error': str(e)}), 500
+        logger.error(f"自动截图错误: {str(e)}")
+        return jsonify({'success': False, 'message': '自动截图失败', 'error': str(e)}), 500
+
+@app.route('/api/screenshot/<filename>')
+def get_screenshot(filename):
+    """获取截图文件（包括原始截图和标注后的图片）"""
+    return send_from_directory(app.config.get('SCREENSHOTS_FOLDER', 'screenshots'), filename)
+
+# ==================== 历史记录页面和API ====================
+@app.route('/history')
+def history_page():
+    """渲染执行历史页面"""
+    return render_template('history.html', current_page='history')
+
+@app.route('/api/history/logs', methods=['GET'])
+def get_history_logs():
+    """分页获取AI分析历史记录"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        
+        result = AnalysisLogDAO.get_analysis_logs_paginated(page, per_page)
+        
+        return jsonify({
+            "success": True,
+            "logs": [log.__dict__ for log in result["logs"]],
+            "total": result["total"],
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (result["total"] + per_page - 1) // per_page
+        })
+    except Exception as e:
+        logger.error(f"获取分析历史记录失败: {e}")
+        return jsonify({"success": False, "error": "获取历史记录失败"}), 500
 
 # ==================== 任务步骤和历史API ====================
 
@@ -743,11 +811,6 @@ def create_task_form():
 def task_detail(task_id):
     """任务详情页面"""
     return render_template('task_detail.html', current_page='tasks', task_id=task_id)
-
-@app.route('/history')
-def history_list():
-    """执行历史页面"""
-    return render_template('history.html', current_page='history')
 
 @app.route('/ai-studio')
 def ai_studio():

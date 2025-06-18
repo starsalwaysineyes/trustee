@@ -8,7 +8,7 @@ import requests
 import time
 import sys
 
-BASE_URL = 'http://localhost:5000'
+BASE_URL = 'http://127.0.0.1:5000'
 
 def test_login_flow():
     """测试完整的登录和页面访问流程"""

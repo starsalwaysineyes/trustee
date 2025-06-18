@@ -192,4 +192,20 @@ class Execution:
     @params.setter
     def params(self, value: Dict[str, Any]):
         """设置操作参数"""
-        self.operation_params = json.dumps(value, ensure_ascii=False) 
+        self.operation_params = json.dumps(value, ensure_ascii=False)
+
+@dataclass
+class AnalysisLog:
+    """用于记录每一次AI分析的详细信息"""
+    __tablename__ = 'analysis_log'
+    id: Optional[int] = None
+    user_id: Optional[int] = None
+    timestamp: Optional[datetime] = None
+    user_instruction: Optional[str] = None
+    original_screenshot_base64: Optional[str] = None
+    annotated_screenshot_base64: Optional[str] = None
+    analysis_result_json: Optional[str] = None
+    target_resolution: Optional[str] = None
+    
+    def __repr__(self):
+        return f'<AnalysisLog {self.id} for User {self.user_id}>' 

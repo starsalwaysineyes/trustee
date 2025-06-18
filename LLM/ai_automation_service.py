@@ -8,65 +8,31 @@ import time
 import json
 import logging
 from typing import Dict, Any, List, Optional, Tuple
-from PIL import Image
+from PIL import Image, ImageDraw
 import pyautogui
 import pyperclip
+from datetime import datetime
+import io
 
-# 导入现有模块的功能，添加错误处理
-try:
-    try:
-        from .uitar import (
-            image_to_base64, 
-            parse_action_output, 
-            coordinates_convert, 
-            draw_box_and_show,
-            run as uitar_run
-        )
-        from .action_praser import (
-            parse_action_to_structure_output,
-            parsing_response_to_pyautogui_code,
-            smart_resize,
-            linear_resize
-        )
-    except ImportError:
-        from uitar import (
-            image_to_base64, 
-            parse_action_output, 
-            coordinates_convert, 
-            draw_box_and_show,
-            run as uitar_run
-        )
-        from action_praser import (
-            parse_action_to_structure_output,
-            parsing_response_to_pyautogui_code,
-            smart_resize,
-            linear_resize
-        )
-except ImportError as e:
-    # 如果模块不存在，创建模拟函数
-    def uitar_run(image_path, instruction):
-        return f'{{"thought": "模拟AI分析: {instruction}", "action": "click", "start_box": "[100, 100, 200, 200]"}}'
-    
-    def parse_action_output(response):
-        return response
-    
-    def coordinates_convert(box, image_size):
-        return [100, 100, 200, 200]
-    
-    def draw_box_and_show(image, start_abs, end_abs, direction):
-        pass
-    
-    def parse_action_to_structure_output(*args, **kwargs):
-        return [{"action_type": "click", "action_inputs": {"start_box": "[0.1, 0.1, 0.2, 0.2]"}}]
-    
-    def parsing_response_to_pyautogui_code(actions, *args, **kwargs):
-        return "# 模拟代码\nimport pyautogui\npyautogui.click(150, 150)"
-    
-    def smart_resize(height, width, *args, **kwargs):
-        return height, width
-    
-    def linear_resize(height, width, *args, **kwargs):
-        return height, width
+# 导入新的图像工具
+from utils.image_utils import image_to_base64
+
+# 导入DAO
+from database.dao import AnalysisLogDAO
+from database.models import AnalysisLog
+
+# 导入现有模块的功能
+from LLM.action_praser import (
+    parse_action_to_structure_output,
+    parsing_response_to_pyautogui_code,
+)
+from LLM.uitar import (
+    draw_box_and_show,
+    run as uitar_run,
+    parse_action_output
+)
+# 导入坐标工具
+from utils.coordinate_utils import parse_box_coordinates, scale_coordinates_to_absolute
 
 logger = logging.getLogger(__name__)
 
@@ -93,24 +59,29 @@ class AIAutomationService:
         
         logger.info(f"AI自动化服务初始化完成，模型: {model_name}")
     
-    def analyze_screenshot(self, image_path: str, user_instruction: str, 
-                          show_visualization: bool = False) -> Dict[str, Any]:
+    def analyze_screenshot(self, user_id: int, image_path: str, user_instruction: str, 
+                          show_visualization: bool = False, target_resolution: str = "auto") -> Dict[str, Any]:
         """
         分析截图并生成操作指令
         
         Args:
+            user_id: 当前操作的用户ID
             image_path: 图像文件路径
             user_instruction: 用户指令
             show_visualization: 是否显示可视化结果
+            target_resolution: 目标分辨率 (格式如 "1920x1080" 或 "auto")
             
         Returns:
             Dict: 包含分析结果和操作指令的字典
         """
         try:
-            # 1. 验证图像文件
+            # 1. 验证图像文件并转为Base64
             if not os.path.exists(image_path):
                 raise FileNotFoundError(f"图像文件不存在: {image_path}")
             
+            with open(image_path, "rb") as f:
+                original_screenshot_base64 = image_to_base64(f.read())
+
             # 2. 获取图像信息
             image = Image.open(image_path)
             original_width, original_height = image.size
@@ -120,37 +91,29 @@ class AIAutomationService:
             ai_response = uitar_run(image_path, user_instruction)
             processing_time = int((time.time() - start_time) * 1000)
             
-            # 4. 解析AI输出
-            parsed_action = json.loads(parse_action_output(ai_response))
+            # 4. 解析AI输出 (仅用于获取原始 thought 和 action)
+            raw_parsed_action = json.loads(parse_action_output(ai_response))
             
-            # 5. 转换坐标（如果存在）
-            converted_actions = []
-            if parsed_action.get("start_box"):
-                start_abs = coordinates_convert(parsed_action["start_box"], image.size)
-                parsed_action["start_box_abs"] = start_abs
-            
-            if parsed_action.get("end_box"):
-                end_abs = coordinates_convert(parsed_action["end_box"], image.size)
-                parsed_action["end_box_abs"] = end_abs
-            
-            # 6. 生成结构化输出
+            # 5. 生成结构化操作
             structured_actions = self._generate_structured_actions(
                 ai_response, original_height, original_width
             )
-            
+
+            # 6. 核心坐标处理：解析、缩放
+            self._process_and_scale_coordinates(structured_actions, target_resolution, (original_width, original_height))
+
             # 7. 生成PyAutoGUI代码
-            pyautogui_code = self._generate_pyautogui_code(
-                structured_actions, original_height, original_width
-            )
+            pyautogui_code = parsing_response_to_pyautogui_code(structured_actions)
             
-            # 8. 可视化结果（可选）
-            if show_visualization:
-                self._show_visualization(image, parsed_action)
+            # 8. 创建可视化图片并获取其Base64
+            annotated_screenshot_base64 = self._create_visualization_image_base64(image, structured_actions)
             
-            # 9. 构建返回结果
+            # 9. 构建返回结果 (现在返回base64)
             result = {
                 "success": True,
+                "user_id": user_id,
                 "user_instruction": user_instruction,
+                "target_resolution": target_resolution,
                 "image_info": {
                     "path": image_path,
                     "size": (original_width, original_height)
@@ -159,13 +122,24 @@ class AIAutomationService:
                     "raw_text": ai_response,
                     "processing_time_ms": processing_time
                 },
-                "parsed_action": parsed_action,
+                "parsed_action": raw_parsed_action,
                 "structured_actions": structured_actions,
                 "pyautogui_code": pyautogui_code,
+                "annotated_screenshot_base64": annotated_screenshot_base64,
                 "timestamp": time.time()
             }
             
-            logger.info(f"分析完成，动作类型: {parsed_action.get('action', 'unknown')}")
+            # 10. 保存分析记录到数据库
+            self._save_analysis_log(
+                user_id=user_id,
+                user_instruction=user_instruction,
+                original_screenshot_base64=original_screenshot_base64,
+                annotated_screenshot_base64=annotated_screenshot_base64,
+                analysis_result=result,
+                target_resolution=target_resolution
+            )
+
+            logger.info(f"分析完成，动作类型: {raw_parsed_action.get('action', 'unknown')}")
             return result
             
         except Exception as e:
@@ -173,6 +147,7 @@ class AIAutomationService:
             return {
                 "success": False,
                 "error": str(e),
+                "user_id": user_id,
                 "user_instruction": user_instruction,
                 "timestamp": time.time()
             }
@@ -256,6 +231,7 @@ class AIAutomationService:
             
             # 分析任务
             analysis_result = self.analyze_screenshot(
+                task["user_id"], 
                 task["image_path"], 
                 task["instruction"]
             )
@@ -296,61 +272,121 @@ class AIAutomationService:
     
     def _generate_structured_actions(self, ai_response: str, 
                                    height: int, width: int) -> List[Dict[str, Any]]:
-        """生成结构化的动作列表"""
+        """从AI原始响应生成结构化操作"""
+        return parse_action_to_structure_output(
+            ai_response,
+            factor=1000.0,
+            origin_resized_height=height,
+            origin_resized_width=width,
+            model_type=self.model_name
+        )
+
+    def _process_and_scale_coordinates(self, 
+                                     actions: List[Dict[str, Any]], 
+                                     target_resolution_str: str,
+                                     original_img_size: Tuple[int, int]):
+        """
+        统一处理所有操作的坐标解析和缩放。
+        该函数会直接修改 `actions` 列表中的字典。
+        """
+        # 1. 解析目标分辨率
+        if target_resolution_str == "auto":
+            try:
+                target_resolution = pyautogui.size()
+            except Exception:
+                logger.warning("无法自动获取屏幕分辨率，将使用截图原始分辨率。")
+                target_resolution = original_img_size
+        else:
+            try:
+                target_w, target_h = map(int, target_resolution_str.split('x'))
+                target_resolution = (target_w, target_h)
+            except ValueError:
+                logger.warning(f"无效的目标分辨率格式: {target_resolution_str}，将使用截图原始分辨率。")
+                target_resolution = original_img_size
+
+        # 2. 遍历所有动作，处理坐标
+        for action in actions:
+            inputs = action.get("action_inputs", {})
+            
+            # 处理 start_box
+            if "start_box" in inputs:
+                box_coords = parse_box_coordinates(inputs["start_box"])
+                if box_coords:
+                    abs_x, abs_y = scale_coordinates_to_absolute(box_coords, target_resolution)
+                    inputs["abs_x"] = abs_x
+                    inputs["abs_y"] = abs_y
+                    # 可选：为拖拽操作保存起始点
+                    inputs["start_abs_x"] = abs_x
+                    inputs["start_abs_y"] = abs_y
+
+            # 处理 end_box (用于拖拽)
+            if "end_box" in inputs:
+                box_coords = parse_box_coordinates(inputs["end_box"])
+                if box_coords:
+                    abs_x, abs_y = scale_coordinates_to_absolute(box_coords, target_resolution)
+                    # 为拖拽操作保存结束点
+                    inputs["end_abs_x"] = abs_x
+                    inputs["end_abs_y"] = abs_y
+
+    def _create_visualization_image_base64(self, 
+                                           original_image: Image.Image, 
+                                           actions: List[Dict[str, Any]]) -> Optional[str]:
+        """
+        在原始截图上绘制操作的可视化标记，并返回Base64编码。
+        """
+        if not actions:
+            return None
+
         try:
-            # 计算调整后的图像尺寸
-            resized_height, resized_width = smart_resize(
-                height, width, 
-                factor=self.image_factor,
-                min_pixels=self.min_pixels,
-                max_pixels=self.max_pixels
-            )
+            # (之前的逻辑保持不变，只是最后不保存文件而是返回base64)
+            target_resolution = original_image.size
+            draw_image = original_image.copy()
+            draw = ImageDraw.Draw(draw_image)
+            action = actions[0]
+            inputs = action.get("action_inputs", {})
+            box_str = inputs.get("start_box")
+            if not box_str: return None
+            box_coords = parse_box_coordinates(box_str)
+            if not box_coords: return None
+            abs_x, abs_y = scale_coordinates_to_absolute(box_coords, target_resolution)
+            radius = 15
+            box = [abs_x - radius, abs_y - radius, abs_x + radius, abs_y + radius]
+            draw.ellipse(box, fill="red", outline="red")
+            halo_radius = radius + 7
+            halo_box = [abs_x - halo_radius, abs_y - halo_radius, abs_x + halo_radius, abs_y + halo_radius]
+            draw.ellipse(halo_box, outline="yellow", width=5)
+
+            # 将图片转换为Base64
+            img_str = image_to_base64(draw_image)
             
-            # 解析动作
-            actions = parse_action_to_structure_output(
-                ai_response,
-                factor=self.image_factor,
-                origin_resized_height=resized_height,
-                origin_resized_width=resized_width,
-                model_type="qwen25vl",
-                max_pixels=self.max_pixels,
-                min_pixels=self.min_pixels
-            )
-            
-            return actions
+            return img_str
+
         except Exception as e:
-            logger.error(f"生成结构化动作失败: {str(e)}")
-            return []
-    
-    def _generate_pyautogui_code(self, structured_actions: List[Dict[str, Any]], 
-                               height: int, width: int) -> str:
-        """生成PyAutoGUI代码"""
+            logger.error(f"创建可视化图片Base64失败: {e}")
+            return None
+
+    def _save_analysis_log(self, user_id: int, user_instruction: str, 
+                           original_screenshot_base64: str, 
+                           annotated_screenshot_base64: Optional[str],
+                           analysis_result: Dict[str, Any], target_resolution: str):
+        """将分析结果保存到数据库"""
         try:
-            if not structured_actions:
-                return "# 无可执行的操作"
-            
-            code = parsing_response_to_pyautogui_code(
-                structured_actions, 
-                image_height=height,
-                image_width=width,
-                input_swap=True
+            log = AnalysisLog(
+                user_id=user_id,
+                timestamp=datetime.fromtimestamp(analysis_result['timestamp']),
+                user_instruction=user_instruction,
+                original_screenshot_base64=original_screenshot_base64,
+                annotated_screenshot_base64=annotated_screenshot_base64,
+                analysis_result_json=json.dumps(analysis_result, ensure_ascii=False, indent=2),
+                target_resolution=target_resolution
             )
-            
-            return code
+            log_id = AnalysisLogDAO.add_analysis_log(log)
+            if log_id:
+                logger.info(f"成功将分析记录保存到数据库，日志ID: {log_id}")
+            else:
+                logger.warning("保存分析记录到数据库失败。")
         except Exception as e:
-            logger.error(f"生成PyAutoGUI代码失败: {str(e)}")
-            return f"# 代码生成失败: {str(e)}"
-    
-    def _show_visualization(self, image: Image.Image, parsed_action: Dict[str, Any]):
-        """显示可视化结果"""
-        try:
-            start_abs = parsed_action.get("start_box_abs")
-            end_abs = parsed_action.get("end_box_abs")
-            direction = parsed_action.get("direction")
-            
-            draw_box_and_show(image, start_abs, end_abs, direction)
-        except Exception as e:
-            logger.warning(f"显示可视化结果失败: {str(e)}")
+            logger.error(f"保存分析记录到数据库时发生异常: {e}")
 
 
 class AIAutomationWorkflow:
@@ -378,7 +414,10 @@ class AIAutomationWorkflow:
         
         # 分析截图
         result = self.service.analyze_screenshot(
-            image_path, instruction, show_visualization=show_preview
+            result["user_id"],
+            image_path, 
+            instruction, 
+            show_visualization=show_preview
         )
         
         if not result.get("success"):

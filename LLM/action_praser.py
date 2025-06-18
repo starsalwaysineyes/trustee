@@ -239,57 +239,36 @@ def parse_action_to_structure_output(text,
             if "start_box" in param_name or "end_box" in param_name:
                 ori_box = param
                 
-                # 处理<bbox>格式的坐标
+                # 从各种格式的字符串中解析出数字列表
                 if ori_box.startswith('<bbox>') and ori_box.endswith('</bbox>'):
-                    # 提取<bbox>标签内的坐标
-                    coords_str = ori_box[6:-7]  # 去掉<bbox>和</bbox>
-                    numbers = coords_str.split()  # 用空格分割
+                    coords_str = ori_box[6:-7]
+                    numbers = coords_str.split()
                 elif ori_box.startswith('(') and ori_box.endswith(')'):
-                    # 处理(x,y,x,y)格式
                     numbers = ori_box.replace("(", "").replace(")", "").split(",")
                 else:
-                    # 尝试直接分割
-                    numbers = ori_box.replace("(", "").replace(")", "").split(",")
+                    # 兜底解析
+                    numbers = ori_box.replace("(", "").replace(")", "").replace("[", "").replace("]", "").split(",")
                     if len(numbers) == 1:
-                        numbers = ori_box.split()  # 尝试用空格分割
+                        numbers = ori_box.split()
 
-                # Convert to float and scale by 1000
-                # Qwen2.5vl output absolute coordinates, qwen2vl output relative coordinates
-                if model_type == "qwen25vl":
-                    float_numbers = []
-                    for num_idx, num in enumerate(numbers):
-                        try:
-                            num = float(num.strip())
-                            if (num_idx + 1) % 2 == 0:
-                                float_numbers.append(
-                                    float(num / smart_resize_height))
-                            else:
-                                float_numbers.append(
-                                    float(num / smart_resize_width))
-                        except ValueError:
-                            print(f"警告：无法解析坐标数字: {num}")
-                            continue
-                else:
-                    float_numbers = []
-                    for num in numbers:
-                        try:
-                            float_numbers.append(float(num.strip()) / factor)
-                        except ValueError:
-                            print(f"警告：无法解析坐标数字: {num}")
-                            continue
+                # 新的、正确的解析逻辑：只解析为整数，不进行任何计算
+                int_numbers = []
+                for num in numbers:
+                    try:
+                        # 使用float()来兼容整数和浮点数字符串，然后转为int
+                        int_numbers.append(int(float(num.strip())))
+                    except (ValueError, TypeError):
+                        print(f"警告：无法将坐标 '{num}' 解析为整数。")
+                        continue
 
-                if len(float_numbers) == 2:
-                    float_numbers = [
-                        float_numbers[0], float_numbers[1], float_numbers[0],
-                        float_numbers[1]
-                    ]
-                elif len(float_numbers) == 4:
-                    # 保持4个坐标不变
-                    pass
+                if len(int_numbers) == 2:
+                    int_numbers.extend(int_numbers)  # [x, y] -> [x, y, x, y]
+                
+                if len(int_numbers) == 4:
+                    # 将解析出的原始整数坐标作为字符串存储
+                    action_inputs[param_name.strip()] = str(int_numbers)
                 else:
-                    print(f"警告：坐标数量不正确: {len(float_numbers)}, 期望2或4个")
-                    
-                action_inputs[param_name.strip()] = str(float_numbers)
+                    print(f"警告：坐标数量不正确: {len(int_numbers)} from '{ori_box}', 期望2或4个。")
 
         # import pdb; pdb.set_trace()
         actions.append({
@@ -303,19 +282,16 @@ def parse_action_to_structure_output(text,
 
 
 def parsing_response_to_pyautogui_code(responses,
-                                       image_height: int,
-                                       image_width: int,
                                        input_swap: bool = True) -> str:
     '''
     将M模型的输出解析为OSWorld中的action，生成pyautogui代码字符串
     参数:
         response: 包含模型输出的字典，结构类似于：
         {
-            "action_type": "hotkey",
+            "action_type": "click",
             "action_inputs": {
-                "hotkey": "v ctrl",
-                "start_box": None,
-                "end_box": None
+                "abs_x": 123,
+                "abs_y": 456
             }
         }
     返回:
@@ -449,64 +425,43 @@ def parsing_response_to_pyautogui_code(responses,
 
         elif action_type in ["drag", "select"]:
             # Parsing drag or select action based on start and end_boxes
-            start_box = action_inputs.get("start_box")
-            end_box = action_inputs.get("end_box")
-            if start_box and end_box:
-                x1, y1, x2, y2 = eval(
-                    start_box)  # Assuming box is in [x1, y1, x2, y2]
-                sx = round(float((x1 + x2) / 2) * image_width, 3)
-                sy = round(float((y1 + y2) / 2) * image_height, 3)
-                x1, y1, x2, y2 = eval(
-                    end_box)  # Assuming box is in [x1, y1, x2, y2]
-                ex = round(float((x1 + x2) / 2) * image_width, 3)
-                ey = round(float((y1 + y2) / 2) * image_height, 3)
+            sx = action_inputs.get("start_abs_x")
+            sy = action_inputs.get("start_abs_y")
+            ex = action_inputs.get("end_abs_x")
+            ey = action_inputs.get("end_abs_y")
+
+            if sx is not None and sy is not None and ex is not None and ey is not None:
                 pyautogui_code += (
                     f"\npyautogui.moveTo({sx}, {sy})\n"
                     f"\npyautogui.dragTo({ex}, {ey}, duration=1.0)\n")
 
         elif action_type == "scroll":
             # Parsing scroll action
-            start_box = action_inputs.get("start_box")
-            if start_box:
-                x1, y1, x2, y2 = eval(
-                    start_box)  # Assuming box is in [x1, y1, x2, y2]
-                x = round(float((x1 + x2) / 2) * image_width, 3)
-                y = round(float((y1 + y2) / 2) * image_height, 3)
-
-                # # 先点对应区域，再滚动
-                # pyautogui_code += f"\npyautogui.click({x}, {y}, button='left')"
-            else:
-                x = None
-                y = None
+            x = action_inputs.get("abs_x")
+            y = action_inputs.get("abs_y")
             direction = action_inputs.get("direction", "")
 
-            if x == None:
-                if "up" in direction.lower():
-                    pyautogui_code += f"\npyautogui.scroll(5)"
-                elif "down" in direction.lower():
-                    pyautogui_code += f"\npyautogui.scroll(-5)"
+            scroll_amount = 5  # Default scroll amount
+            if "up" in direction.lower():
+                scroll_value = scroll_amount
+            elif "down" in direction.lower():
+                scroll_value = -scroll_amount
             else:
-                if "up" in direction.lower():
-                    pyautogui_code += f"\npyautogui.scroll(5, x={x}, y={y})"
-                elif "down" in direction.lower():
-                    pyautogui_code += f"\npyautogui.scroll(-5, x={x}, y={y})"
+                scroll_value = 0
+
+            if x is not None and y is not None:
+                pyautogui_code += f"\npyautogui.scroll({scroll_value}, x={x}, y={y})"
+            else:
+                pyautogui_code += f"\npyautogui.scroll({scroll_value})"
 
         elif action_type in [
                 "click", "left_single", "left_double", "right_single", "hover"
         ]:
             # Parsing mouse click actions
-            start_box = action_inputs.get("start_box")
-            start_box = str(start_box)
-            if start_box:
-                start_box = eval(start_box)
-                if len(start_box) == 4:
-                    x1, y1, x2, y2 = start_box  # Assuming box is in [x1, y1, x2, y2]
-                elif len(start_box) == 2:
-                    x1, y1 = start_box
-                    x2 = x1
-                    y2 = y1
-                x = round(float((x1 + x2) / 2) * image_width, 3)
-                y = round(float((y1 + y2) / 2) * image_height, 3)
+            x = action_inputs.get("abs_x")
+            y = action_inputs.get("abs_y")
+
+            if x is not None and y is not None:
                 if action_type == "left_single" or action_type == "click":
                     pyautogui_code += f"\npyautogui.click({x}, {y}, button='left')"
                 elif action_type == "left_double":

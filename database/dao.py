@@ -11,11 +11,11 @@ import logging
 # 条件导入：支持不同的运行方式
 try:
     from .database import db_manager
-    from .models import Task, TaskStep, Screenshot, AIAnalysis, Execution, User, Device
+    from .models import Task, TaskStep, Screenshot, AIAnalysis, Execution, User, Device, AnalysisLog
 except ImportError:
     # 如果相对导入失败，使用绝对导入
     from database import db_manager
-    from models import Task, TaskStep, Screenshot, AIAnalysis, Execution, User, Device
+    from models import Task, TaskStep, Screenshot, AIAnalysis, Execution, User, Device, AnalysisLog
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +151,77 @@ class TaskDAO(BaseDAO):
             cursor.execute("DELETE FROM tasks WHERE task_id = ?", (task_id,))
             conn.commit()
             return cursor.rowcount > 0
+
+class AnalysisLogDAO(BaseDAO):
+    """分析日志数据访问对象"""
+
+    @staticmethod
+    def add_analysis_log(log: "AnalysisLog") -> Optional[int]:
+        """
+        将一条新的AI分析记录添加到数据库。
+        :param log: 包含分析数据的AnalysisLog对象。
+        :return: 新记录的ID，如果失败则返回None。
+        """
+        sql = """
+        INSERT INTO analysis_log (
+            user_id, timestamp, user_instruction, original_screenshot_base64,
+            annotated_screenshot_base64, analysis_result_json, target_resolution
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        params = (
+            log.user_id,
+            log.timestamp or datetime.utcnow(),
+            log.user_instruction,
+            log.original_screenshot_base64,
+            log.annotated_screenshot_base64,
+            log.analysis_result_json,
+            log.target_resolution
+        )
+        try:
+            with db_manager.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(sql, params)
+                log_id = cursor.lastrowid
+                conn.commit()
+                logger.info(f"成功添加分析日志，ID: {log_id}")
+                return log_id
+        except Exception as e:
+            logger.error(f"DAO: 添加分析日志失败: {e}")
+            return None
+
+    @staticmethod
+    def get_analysis_logs_paginated(page: int, per_page: int) -> Dict[str, Any]:
+        """
+        分页查询AI分析日志。
+        :param page: 当前页码 (从1开始)。
+        :param per_page: 每页记录数。
+        :return: 包含日志列表和总数的字典。
+        """
+        offset = (page - 1) * per_page
+        
+        try:
+            with db_manager.get_connection() as conn:
+                # 查询总数
+                total_count = conn.execute("SELECT COUNT(*) FROM analysis_log").fetchone()[0]
+                
+                # 查询分页数据
+                query_sql = """
+                SELECT * FROM analysis_log
+                ORDER BY timestamp DESC
+                LIMIT ? OFFSET ?
+                """
+                
+                rows = conn.execute(query_sql, (per_page, offset)).fetchall()
+                
+                logs = [AnalysisLog(**BaseDAO.row_to_dict(row)) for row in rows]
+                
+                return {
+                    "logs": logs,
+                    "total": total_count,
+                }
+        except Exception as e:
+            logger.error(f"DAO: 分页查询分析日志失败: {e}")
+            return {"logs": [], "total": 0}
 
 class TaskStepDAO(BaseDAO):
     """任务步骤数据访问对象"""

@@ -1,60 +1,219 @@
-{% extends 'base.html' %}
-{% block title %}历史记录{% endblock %}
+{% extends "base.html" %}
 
-{% block header %}
-<div class="bg-blue-600 p-6">
-    <h1 class="text-2xl font-bold text-white">历史记录</h1>
-    <div class="flex items-center mt-2">
-        <div class="bg-blue-500 p-1 rounded-full mr-2">
-            <span class="material-icons text-white text-sm">computer</span>
-        </div>
-         <!-- Assuming the first connected device is the active one -->
-         {% set active_device = devices|selectattr('connected', 'equalto', true)|first %}
-         <p class="text-blue-100 text-sm">
-             {{ active_device.name if active_device else '未连接设备' }} - {{ '已连接' if active_device else '未连接' }}
-         </p>
-    </div>
-</div>
+{% block title %}执行历史 - Trustee{% endblock %}
+
+{% block extra_head %}
+<style>
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        table-layout: fixed;
+    }
+    .history-table th, .history-table td {
+        border: 1px solid #ddd;
+        padding: 12px;
+        text-align: left;
+        word-wrap: break-word;
+    }
+    .history-table th {
+        background-color: #f8f9fa;
+        font-weight: 500;
+    }
+    .history-table tbody tr:hover {
+        background-color: #f1f1f1;
+    }
+    .preview-img {
+        max-width: 150px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    .preview-img:hover {
+        transform: scale(2.5);
+        position: relative;
+        z-index: 10;
+    }
+    .pagination {
+        margin-top: 20px;
+        text-align: center;
+    }
+    .pagination button {
+        padding: 8px 16px;
+        margin: 0 5px;
+        border: 1px solid #ddd;
+        background: white;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    .pagination button.active {
+        background: #2196F3;
+        color: white;
+        border-color: #2196F3;
+    }
+    .pagination button:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    .details-cell {
+        font-size: 13px;
+        line-height: 1.5;
+    }
+    .details-cell strong {
+        color: #333;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="p-4">
-    <div class="flex space-x-2 mb-4 overflow-x-auto pb-2">
-        <button class="bg-blue-600 text-white px-4 py-2 rounded-full text-sm whitespace-nowrap">全部记录</button>
-        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">定时任务</button>
-        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">周期任务</button>
-        <button class="bg-white text-gray-700 px-4 py-2 rounded-full text-sm border border-gray-200 whitespace-nowrap">脚本任务</button>
+<div class="page-header">
+    <h1><i class="material-icons">history</i> 执行历史</h1>
+    <p>查看所有AI分析任务的详细记录</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>分析日志</h3>
     </div>
-    
-    <div class="mb-4">
-        <div class="relative">
-            <input type="text" class="w-full p-3 pl-10 border border-gray-300 rounded-lg" placeholder="搜索历史记录">
-            <span class="material-icons absolute left-3 top-3 text-gray-400">search</span>
+    <div class="card-body">
+        <div style="overflow-x: auto;">
+            <table class="history-table">
+                <colgroup>
+                    <col style="width: 15%;">
+                    <col style="width: 25%;">
+                    <col style="width: 15%;">
+                    <col style="width: 15%;">
+                    <col style="width: 30%;">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>用户指令</th>
+                        <th>原始截图</th>
+                        <th>标注后截图</th>
+                        <th>分析详情</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body">
+                    <!-- Data will be loaded by JavaScript -->
+                </tbody>
+            </table>
         </div>
-    </div>
-    
-    <div class="space-y-1">
-        {% for group in history %}
-        <div class="bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-500 sticky top-0 z-5">
-            {{ group.group }}
+        <div id="pagination-controls" class="pagination">
+            <!-- Pagination will be loaded by JavaScript -->
         </div>
-        
-        <div class="space-y-2 pb-2">
-            {% for item in group.items %}
-            <div class="p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-                <div class="flex justify-between">
-                    <div>
-                        <h3 class="font-medium">{{ item.name }}</h3>
-                        <p class="text-xs text-gray-500 mt-0.5">{{ item.time }}</p>
-                    </div>
-                    <span class="px-2 py-0.5 bg-{{ item.status_color }}-100 text-{{ item.status_color }}-800 text-xs rounded-full h-fit whitespace-nowrap">{{ item.status }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% else %}
-         <p class="text-gray-500 text-sm">暂无历史记录。</p>
-        {% endfor %}
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadHistory(1);
+    });
+
+    async function loadHistory(page = 1) {
+        const tableBody = document.getElementById('history-table-body');
+        tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">正在加载...</td></tr>';
+
+        try {
+            const response = await fetch(`/api/history/logs?page=${page}&per_page=10`);
+            const data = await response.json();
+
+            if (data.success && data.logs.length > 0) {
+                tableBody.innerHTML = '';
+                data.logs.forEach(log => {
+                    const row = document.createElement('tr');
+                    
+                    const analysisResult = JSON.parse(log.analysis_result_json);
+                    const thought = analysisResult.parsed_action.thought || '无';
+                    const action = analysisResult.parsed_action.action || '无';
+
+                    row.innerHTML = `
+                        <td>${new Date(log.timestamp).toLocaleString()}</td>
+                        <td>${escapeHtml(log.user_instruction)}</td>
+                        <td><img src="${log.original_screenshot_base64}" class="preview-img" alt="原始截图"></td>
+                        <td>${log.annotated_screenshot_base64 ? `<img src="${log.annotated_screenshot_base64}" class="preview-img" alt="标注截图">` : '无'}</td>
+                        <td class="details-cell">
+                            <strong>思考:</strong> ${escapeHtml(thought)}<br>
+                            <strong>动作:</strong> ${escapeHtml(action)}<br>
+                            <strong>分辨率:</strong> ${escapeHtml(log.target_resolution)}
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+                renderPagination(data.total_pages, data.page);
+            } else {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px;">没有找到历史记录。</td></tr>';
+                document.getElementById('pagination-controls').innerHTML = '';
+            }
+        } catch (error) {
+            console.error('加载历史记录失败:', error);
+            tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red; padding: 40px;">加载失败，请重试。</td></tr>';
+        }
+    }
+
+    function renderPagination(totalPages, currentPage) {
+        const container = document.getElementById('pagination-controls');
+        container.innerHTML = '';
+
+        const prevButton = document.createElement('button');
+        prevButton.innerHTML = '&laquo; 上一页';
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = () => loadHistory(currentPage - 1);
+        container.appendChild(prevButton);
+
+        let startPage = Math.max(1, currentPage - 2);
+        let endPage = Math.min(totalPages, currentPage + 2);
+
+        if (currentPage <= 3) {
+            endPage = Math.min(5, totalPages);
+        }
+        if (currentPage > totalPages - 3) {
+            startPage = Math.max(1, totalPages - 4);
+        }
+        
+        if (startPage > 1) {
+            const firstButton = document.createElement('button');
+            firstButton.textContent = '1';
+            firstButton.onclick = () => loadHistory(1);
+            container.appendChild(firstButton);
+            if (startPage > 2) {
+                container.appendChild(document.createTextNode('...'));
+            }
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageButton = document.createElement('button');
+            pageButton.textContent = i;
+            if (i === currentPage) {
+                pageButton.classList.add('active');
+            }
+            pageButton.onclick = () => loadHistory(i);
+            container.appendChild(pageButton);
+        }
+
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                container.appendChild(document.createTextNode('...'));
+            }
+            const lastButton = document.createElement('button');
+            lastButton.textContent = totalPages;
+            lastButton.onclick = () => loadHistory(totalPages);
+            container.appendChild(lastButton);
+        }
+
+
+        const nextButton = document.createElement('button');
+        nextButton.innerHTML = '下一页 &raquo;';
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.onclick = () => loadHistory(currentPage + 1);
+        container.appendChild(nextButton);
+    }
+    
+    function escapeHtml(text) {
+        if (typeof text !== 'string') return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
 {% endblock %} 
