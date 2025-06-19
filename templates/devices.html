@@ -55,6 +55,23 @@
         border-radius: 6px;
     }
     
+    .btn-success {
+        background: #4CAF50;
+        color: white;
+        border: 1px solid #4CAF50;
+    }
+    
+    .btn-success:hover {
+        background: #45a049;
+        border-color: #45a049;
+    }
+    
+    .btn-success:disabled {
+        background: #ccc;
+        border-color: #ccc;
+        cursor: not-allowed;
+    }
+    
     .add-device-btn {
         position: fixed;
         bottom: 30px;
@@ -163,6 +180,167 @@
         margin-bottom: 20px;
         color: #ddd;
     }
+    
+    /* 远程监控模态框样式 */
+    .remote-monitor-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 2000;
+    }
+    
+    .monitor-content {
+        background: #1a1a1a;
+        margin: 2% auto;
+        padding: 0;
+        width: 95%;
+        height: 90%;
+        border-radius: 12px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .monitor-header {
+        background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        color: white;
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .monitor-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 500;
+    }
+    
+    .monitor-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    
+    .control-btn {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .control-btn:hover {
+        background: rgba(255,255,255,0.3);
+    }
+    
+    .control-btn.active {
+        background: #4CAF50;
+    }
+    
+    .monitor-screen {
+        flex: 1;
+        background: #000;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+    
+    .screen-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        border-radius: 4px;
+    }
+    
+    .monitor-status {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #4CAF50;
+        animation: pulse-indicator 2s infinite;
+    }
+    
+    @keyframes pulse-indicator {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+    
+    .monitor-info {
+        position: absolute;
+        bottom: 15px;
+        right: 15px;
+        background: rgba(0,0,0,0.7);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-family: monospace;
+    }
+    
+    .loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #666;
+    }
+    
+    .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 3px solid #333;
+        border-top: 3px solid #2196F3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 20px;
+    }
+    
+    .connection-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #f44336;
+    }
+    
+    .error-icon {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.7;
+    }
 </style>
 {% endblock %}
 
@@ -231,14 +409,98 @@
     </div>
 </div>
 
+<!-- 远程监控模态框 -->
+<div id="remoteMonitorModal" class="remote-monitor-modal">
+    <div class="monitor-content">
+        <div class="monitor-header">
+            <div class="monitor-title">
+                <i class="material-icons">monitor</i>
+                <span id="monitorDeviceName">远程监控</span>
+                <span id="monitorDeviceIP" style="opacity: 0.8; font-size: 14px;"></span>
+            </div>
+            <div class="monitor-controls">
+                <button class="control-btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">
+                    <i class="material-icons">refresh</i>
+                    <span>自动刷新</span>
+                </button>
+                <button class="control-btn" onclick="captureRemoteScreen()">
+                    <i class="material-icons">camera_alt</i>
+                    <span>立即截图</span>
+                </button>
+                <button class="control-btn" onclick="toggleFullscreen()">
+                    <i class="material-icons">fullscreen</i>
+                    <span>全屏</span>
+                </button>
+                <button class="control-btn" onclick="closeRemoteMonitor()">
+                    <i class="material-icons">close</i>
+                    <span>关闭</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="monitor-screen" id="monitorScreen">
+            <div class="loading-screen" id="loadingScreen">
+                <div class="loading-spinner"></div>
+                <p>正在连接远程设备...</p>
+                <small>请确保目标设备在线且允许远程访问</small>
+            </div>
+            
+            <div class="connection-error" id="errorScreen" style="display: none;">
+                <i class="material-icons error-icon">error_outline</i>
+                <h3>连接失败</h3>
+                <p id="errorMessage">无法连接到远程设备</p>
+                <button class="control-btn" onclick="retryConnection()" style="margin-top: 20px;">
+                    <i class="material-icons">refresh</i>
+                    重试连接
+                </button>
+            </div>
+            
+            <img id="remoteScreenImage" class="screen-image" style="display: none;" alt="远程屏幕">
+            
+            <div class="monitor-status" id="monitorStatus">
+                <div class="status-indicator"></div>
+                <span>已连接</span>
+            </div>
+            
+            <div class="monitor-info" id="monitorInfo">
+                <div>分辨率: <span id="screenResolution">--</span></div>
+                <div>延迟: <span id="latency">--</span>ms</div>
+                <div>刷新: <span id="refreshRate">--</span>s</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 let devices = [];
+let monitorState = {
+    isActive: false,
+    deviceId: null,
+    deviceName: '',
+    deviceIP: '',
+    autoRefresh: false,
+    refreshInterval: null,
+    refreshRate: 3000 // 3秒刷新一次
+};
 
 // 页面加载时获取设备列表
 document.addEventListener('DOMContentLoaded', function() {
     loadDevices();
     // 每30秒刷新一次设备状态
     setInterval(loadDevices, 30000);
+    
+    // 监听ESC键关闭监控
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && monitorState.isActive) {
+            closeRemoteMonitor();
+        }
+    });
+    
+    // 绑定设备添加表单提交事件
+    document.getElementById('addDeviceForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addDevice();
+    });
 });
 
 // 加载设备列表
@@ -313,6 +575,9 @@ function renderDevices(devices) {
                 <button class="btn btn-sm btn-primary" onclick="connectDevice(${device.device_id})">
                     <i class="material-icons">link</i> 连接
                 </button>
+                <button class="btn btn-sm btn-success" onclick="startRemoteMonitor(${device.device_id}, '${device.device_name}', '${device.device_ip}')" ${device.status === 'offline' ? 'disabled' : ''}>
+                    <i class="material-icons">monitor</i> 远程监控
+                </button>
                 <button class="btn btn-sm btn-secondary" onclick="testConnection(${device.device_id})">
                     <i class="material-icons">network_check</i> 测试
                 </button>
@@ -367,6 +632,17 @@ function formatTime(timeStr) {
     return Math.floor(diff / 86400000) + '天前';
 }
 
+// 验证IP地址格式
+function isValidIP(ip) {
+    if (!ip) return false;
+    
+    // 支持IPv4地址和常用主机名
+    const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+    const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+    
+    return ipv4Regex.test(ip) || hostnameRegex.test(ip) || ip === 'localhost';
+}
+
 // 显示添加设备模态框
 function showAddDeviceModal() {
     document.getElementById('addDeviceModal').style.display = 'block';
@@ -380,25 +656,44 @@ function hideAddDeviceModal() {
 
 // 添加设备
 async function addDevice() {
-    const formData = new FormData(document.getElementById('deviceForm'));
+    const formData = new FormData(document.getElementById('addDeviceForm'));
     const deviceData = Object.fromEntries(formData.entries());
     
+    // 验证IP地址格式
+    if (!isValidIP(deviceData.device_ip)) {
+        showError('请输入有效的IP地址');
+        return;
+    }
+    
+    // 显示正在添加提示
+    showInfo('正在添加设备并测试连接...');
+    
     try {
-        const data = await apiRequest('/api/devices', {
+        const response = await fetch('/api/devices', {
             method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify(deviceData)
         });
         
+        const data = await response.json();
+        
         if (data && data.success) {
-            showMessage('设备添加成功', 'success');
-            closeModal();
+            showSuccess('设备添加成功');
+            hideAddDeviceModal();
             loadDevices();
+            
+            // 自动测试连接
+            setTimeout(() => {
+                testConnection(data.device_id);
+            }, 1000);
         } else {
-            showMessage(data?.message || '添加设备失败', 'error');
+            showError(data?.message || '添加设备失败');
         }
     } catch (error) {
         console.error('添加设备失败:', error);
-        showMessage('添加设备失败', 'error');
+        showError('网络错误，请检查连接后重试');
     }
 }
 
@@ -415,15 +710,31 @@ async function connectDevice(deviceId) {
 // 测试连接
 async function testConnection(deviceId) {
     showInfo('正在测试连接...');
-    // 这里可以添加实际的测试逻辑
-    setTimeout(() => {
-        const isOnline = Math.random() > 0.3; // 模拟测试结果
-        if (isOnline) {
-            showSuccess('连接测试成功');
+    
+    try {
+        const response = await fetch('/api/devices/test-connection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: deviceId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showSuccess(`连接测试成功 - 延迟: ${result.latency}ms`);
+            // 更新设备状态
+            loadDevices();
         } else {
-            showError('连接测试失败，设备可能离线');
+            showError(`连接测试失败: ${result.message}`);
         }
-    }, 2000);
+    } catch (error) {
+        console.error('连接测试失败:', error);
+        showError('连接测试失败，网络错误');
+    }
 }
 
 // 编辑设备
@@ -481,11 +792,185 @@ function showInfo(message) {
     alert('ℹ️ ' + message);
 }
 
-// 点击模态框外部关闭
+// ================== 远程监控功能 ==================
+
+// 开始远程监控
+async function startRemoteMonitor(deviceId, deviceName, deviceIP) {
+    monitorState.deviceId = deviceId;
+    monitorState.deviceName = deviceName;
+    monitorState.deviceIP = deviceIP;
+    monitorState.isActive = true;
+    
+    // 更新模态框标题
+    document.getElementById('monitorDeviceName').textContent = `远程监控 - ${deviceName}`;
+    document.getElementById('monitorDeviceIP').textContent = `(${deviceIP})`;
+    
+    // 显示模态框
+    document.getElementById('remoteMonitorModal').style.display = 'block';
+    
+    // 重置界面状态
+    resetMonitorUI();
+    
+    // 开始首次截图
+    await captureRemoteScreen();
+    
+    // 如果首次成功，启用自动刷新
+    if (document.getElementById('remoteScreenImage').style.display !== 'none') {
+        toggleAutoRefresh(true);
+    }
+}
+
+// 关闭远程监控
+function closeRemoteMonitor() {
+    monitorState.isActive = false;
+    
+    // 停止自动刷新
+    if (monitorState.refreshInterval) {
+        clearInterval(monitorState.refreshInterval);
+        monitorState.refreshInterval = null;
+        monitorState.autoRefresh = false;
+    }
+    
+    // 隐藏模态框
+    document.getElementById('remoteMonitorModal').style.display = 'none';
+    
+    // 重置状态
+    resetMonitorUI();
+}
+
+// 重置监控界面
+function resetMonitorUI() {
+    document.getElementById('loadingScreen').style.display = 'flex';
+    document.getElementById('errorScreen').style.display = 'none';
+    document.getElementById('remoteScreenImage').style.display = 'none';
+    document.getElementById('screenResolution').textContent = '--';
+    document.getElementById('latency').textContent = '--';
+    document.getElementById('refreshRate').textContent = '--';
+    
+    // 重置自动刷新按钮
+    const autoBtn = document.getElementById('autoRefreshBtn');
+    autoBtn.classList.remove('active');
+    autoBtn.querySelector('span').textContent = '自动刷新';
+}
+
+// 切换自动刷新
+function toggleAutoRefresh(forceEnable = false) {
+    const autoBtn = document.getElementById('autoRefreshBtn');
+    
+    if (forceEnable || !monitorState.autoRefresh) {
+        // 启用自动刷新
+        monitorState.autoRefresh = true;
+        autoBtn.classList.add('active');
+        autoBtn.querySelector('span').textContent = '停止刷新';
+        
+        monitorState.refreshInterval = setInterval(captureRemoteScreen, monitorState.refreshRate);
+        document.getElementById('refreshRate').textContent = (monitorState.refreshRate / 1000).toFixed(1);
+    } else {
+        // 停止自动刷新
+        monitorState.autoRefresh = false;
+        autoBtn.classList.remove('active');
+        autoBtn.querySelector('span').textContent = '自动刷新';
+        
+        if (monitorState.refreshInterval) {
+            clearInterval(monitorState.refreshInterval);
+            monitorState.refreshInterval = null;
+        }
+        document.getElementById('refreshRate').textContent = '--';
+    }
+}
+
+// 捕获远程屏幕
+async function captureRemoteScreen() {
+    if (!monitorState.isActive) return;
+    
+    const startTime = Date.now();
+    
+    try {
+        // 调用远程截图API
+        const response = await fetch('/api/remote/screenshot', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: monitorState.deviceId,
+                device_ip: monitorState.deviceIP
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 显示截图
+            const img = document.getElementById('remoteScreenImage');
+            img.src = result.screenshot_url + '?t=' + Date.now();
+            img.style.display = 'block';
+            img.onload = function() {
+                // 隐藏加载和错误界面
+                document.getElementById('loadingScreen').style.display = 'none';
+                document.getElementById('errorScreen').style.display = 'none';
+                
+                // 更新信息显示
+                const latency = Date.now() - startTime;
+                document.getElementById('latency').textContent = latency;
+                document.getElementById('screenResolution').textContent = result.resolution || '未知';
+            };
+            
+        } else {
+            throw new Error(result.message || '远程截图失败');
+        }
+        
+    } catch (error) {
+        console.error('远程截图失败:', error);
+        showConnectionError(error.message);
+    }
+}
+
+// 显示连接错误
+function showConnectionError(message) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('remoteScreenImage').style.display = 'none';
+    document.getElementById('errorScreen').style.display = 'flex';
+    document.getElementById('errorMessage').textContent = message;
+    
+    // 停止自动刷新
+    if (monitorState.autoRefresh) {
+        toggleAutoRefresh();
+    }
+}
+
+// 重试连接
+async function retryConnection() {
+    resetMonitorUI();
+    await captureRemoteScreen();
+}
+
+// 全屏切换
+function toggleFullscreen() {
+    const modal = document.getElementById('remoteMonitorModal');
+    
+    if (!document.fullscreenElement) {
+        modal.requestFullscreen().catch(err => {
+            console.error('无法进入全屏模式:', err);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+// 点击模态框外部关闭监控
 window.onclick = function(event) {
-    const modal = document.getElementById('addDeviceModal');
-    if (event.target === modal) {
+    const addModal = document.getElementById('addDeviceModal');
+    const monitorModal = document.getElementById('remoteMonitorModal');
+    
+    if (event.target === addModal) {
         hideAddDeviceModal();
+    } else if (event.target === monitorModal) {
+        closeRemoteMonitor();
     }
 }
 </script>

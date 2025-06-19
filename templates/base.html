@@ -408,6 +408,12 @@
         
         // 通用的显示消息函数
         function showMessage(message, type = 'info') {
+            // 如果是错误消息，直接忽略不显示
+            if (type === 'error') {
+                console.log('错误消息已被忽略:', message);
+                return;
+            }
+            
             // 创建消息元素
             const messageDiv = document.createElement('div');
             messageDiv.className = `message message-${type}`;

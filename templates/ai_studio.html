@@ -8,7 +8,7 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 30px;
-        height: calc(100vh - 200px);
+        min-height: 400px;
     }
     
     .upload-section {
@@ -18,13 +18,121 @@
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
     
+
+    
+    /* 简化的结果展示区域 */
     .results-section {
         background: white;
+        padding: 20px;
         border-radius: 12px;
-        padding: 30px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        overflow-y: auto;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
+    
+    /* 等待状态的动态装饰环 */
+    .waiting-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+        text-align: center;
+        position: relative;
+        padding: 40px 20px;
+    }
+    
+    .rotating-ring {
+        width: 120px;
+        height: 120px;
+        position: relative;
+        margin-bottom: 30px;
+    }
+    
+    .ring {
+        width: 100%;
+        height: 100%;
+        border: 3px solid transparent;
+        border-radius: 50%;
+        position: absolute;
+        animation: rotate 3s linear infinite;
+    }
+    
+    .ring-1 {
+        border-top: 3px solid #2196F3;
+        border-right: 3px solid #2196F3;
+        animation-duration: 2s;
+    }
+    
+    .ring-2 {
+        border-bottom: 3px solid #667eea;
+        border-left: 3px solid #667eea;
+        animation-duration: 3s;
+        animation-direction: reverse;
+        transform: scale(0.8);
+    }
+    
+    .ring-3 {
+        border-top: 3px solid #764ba2;
+        border-bottom: 3px solid #764ba2;
+        animation-duration: 4s;
+        transform: scale(0.6);
+    }
+    
+    @keyframes rotate {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .waiting-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 48px;
+        color: #2196F3;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+        50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    }
+    
+    .waiting-text {
+        color: #666;
+        margin-bottom: 10px;
+    }
+    
+    .waiting-subtitle {
+        color: #999;
+        font-size: 14px;
+        max-width: 300px;
+        line-height: 1.5;
+    }
+    
+    /* 结果卡片滚动动画 */
+    .result-card {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-left: 4px solid #2196F3;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: slideInUp 0.6s ease-out forwards;
+    }
+    
+    @keyframes slideInUp {
+        0% {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+
     
     .upload-area {
         border: 2px dashed #ddd;
@@ -101,13 +209,7 @@
         transform: none;
     }
     
-    .result-card {
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        border-left: 4px solid #2196F3;
-    }
+
     
     .result-header {
         display: flex;
@@ -384,10 +486,15 @@
         <h3><i class="material-icons">analytics</i> 分析结果</h3>
         
         <div id="resultsContainer">
-            <div class="empty-state" style="text-align: center; padding: 60px 20px; color: #666;">
-                <i class="material-icons" style="font-size: 64px; color: #ddd; margin-bottom: 20px;">psychology</i>
-                <h4>等待AI分析</h4>
-                <p>上传截图并输入操作指令，AI将为你生成自动化代码</p>
+            <div class="waiting-state" id="waitingState">
+                <div class="rotating-ring">
+                    <div class="ring ring-1"></div>
+                    <div class="ring ring-2"></div>
+                    <div class="ring ring-3"></div>
+                    <i class="material-icons waiting-icon">psychology</i>
+                </div>
+                <h4 class="waiting-text">等待AI分析</h4>
+                <p class="waiting-subtitle">上传截图并输入操作指令，AI将为你生成自动化代码</p>
             </div>
         </div>
     </div>
@@ -403,6 +510,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStats();
     loadResolutionSetting();
 });
+
+
 
 // 加载分辨率设置
 function loadResolutionSetting() {
@@ -569,8 +678,34 @@ async function analyzeScreenshot() {
     // 显示加载状态
     const analyzeBtn = document.getElementById('analyzeBtn');
     const loadingSpinner = document.getElementById('loadingSpinner');
+    const waitingState = document.getElementById('waitingState');
+    const scrollIndicator = document.getElementById('scrollIndicator');
+    
     analyzeBtn.disabled = true;
     loadingSpinner.style.display = 'block';
+    
+    // 重置右侧到等待状态
+    if (waitingState) {
+        waitingState.style.display = 'flex';
+    }
+    if (scrollIndicator) {
+        scrollIndicator.style.display = 'none';
+    }
+    
+    // 清空之前的结果
+    const container = document.getElementById('resultsContainer');
+    container.innerHTML = `
+        <div class="waiting-state" id="waitingState">
+            <div class="rotating-ring">
+                <div class="ring ring-1"></div>
+                <div class="ring ring-2"></div>
+                <div class="ring ring-3"></div>
+                <i class="material-icons waiting-icon">psychology</i>
+            </div>
+            <h4 class="waiting-text">AI正在分析中...</h4>
+            <p class="waiting-subtitle">请稍候，AI正在理解您的截图并生成操作代码</p>
+        </div>
+    `;
     
     try {
         const formData = new FormData();
@@ -639,10 +774,28 @@ async function analyzeScreenshot() {
 // 使用DOM操作重构，以确保事件监听器正确绑定
 function displayAnalysisResult(result, processingTime) {
     const container = document.getElementById('resultsContainer');
+    const waitingState = document.getElementById('waitingState');
+    const scrollIndicator = document.getElementById('scrollIndicator');
+    
+    // 隐藏等待状态
+    if (waitingState) {
+        waitingState.style.display = 'none';
+    }
+    
+    // 显示滚动指示器
+    if (scrollIndicator) {
+        scrollIndicator.style.display = 'flex';
+    }
+    
     container.innerHTML = ''; // 清空旧内容
 
     const card = document.createElement('div');
     card.className = 'result-card';
+    
+    // 添加延迟动画效果
+    setTimeout(() => {
+        card.style.animationDelay = '0.1s';
+    }, 100);
 
     // Header
     card.innerHTML += `
@@ -715,6 +868,8 @@ function displayAnalysisResult(result, processingTime) {
     }
 
     container.appendChild(card);
+    
+
 }
 
 // 预览执行

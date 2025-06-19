@@ -31,7 +31,8 @@ class WorkflowService:
             os.makedirs(self.screenshot_dir)
     
     def create_task(self, user_id: int, task_name: str, 
-                   natural_language_input: str, device_id: Optional[int] = None) -> int:
+                   natural_language_input: str, device_id: Optional[int] = None,
+                   task_type: str = "manual") -> int:
         """
         创建新任务
         
@@ -40,6 +41,7 @@ class WorkflowService:
             task_name: 任务名称
             natural_language_input: 用户的自然语言指令
             device_id: 设备ID (可选)
+            task_type: 任务类型 (可选，默认为 manual)
             
         Returns:
             int: 新创建的任务ID
@@ -49,12 +51,43 @@ class WorkflowService:
             device_id=device_id,
             task_name=task_name,
             task_description=f"执行指令: {natural_language_input}",
+            task_type=task_type,
             natural_language_input=natural_language_input,
             status="pending"
         )
         
         task_id = TaskDAO.create(task)
         return task_id
+    
+    def create_task_step(self, task_id: int, step_sequence: int, step_type: str,
+                        step_description: str, ai_analysis_id: Optional[int] = None,
+                        execution_code: Optional[str] = None) -> int:
+        """
+        创建任务步骤
+        
+        Args:
+            task_id: 任务ID
+            step_sequence: 步骤序号
+            step_type: 步骤类型
+            step_description: 步骤描述
+            ai_analysis_id: 关联的AI分析ID (可选)
+            execution_code: 执行代码 (可选)
+            
+        Returns:
+            int: 步骤ID
+        """
+        step = TaskStep(
+            task_id=task_id,
+            step_sequence=step_sequence,
+            step_type=step_type,
+            step_description=step_description,
+            ai_analysis_id=ai_analysis_id,
+            execution_code=execution_code,
+            status="pending"
+        )
+        
+        step_id = TaskStepDAO.create(step)
+        return step_id
     
     def start_task_execution(self, task_id: int) -> bool:
         """

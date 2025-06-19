@@ -222,6 +222,55 @@ class AnalysisLogDAO(BaseDAO):
         except Exception as e:
             logger.error(f"DAO: 分页查询分析日志失败: {e}")
             return {"logs": [], "total": 0}
+    
+    @staticmethod
+    def create_analysis_log(user_id: int, screenshot_id: Optional[int], user_instruction: str,
+                           ai_response: str, confidence_score: float, parsed_action: dict,
+                           pyautogui_code: str, target_resolution: str) -> int:
+        """
+        创建AI分析日志记录
+        
+        Args:
+            user_id: 用户ID
+            screenshot_id: 截图ID
+            user_instruction: 用户指令
+            ai_response: AI响应
+            confidence_score: 置信度分数
+            parsed_action: 解析的动作
+            pyautogui_code: 生成的代码
+            target_resolution: 目标分辨率
+            
+        Returns:
+            int: 分析记录ID
+        """
+        import json
+        
+        # 从ai_response中提取多轮分析信息（如果存在）
+        multi_round_analysis = None
+        if isinstance(ai_response, dict) and 'multi_round_analysis' in ai_response:
+            multi_round_analysis = ai_response['multi_round_analysis']
+        elif isinstance(parsed_action, dict) and 'multi_round_analysis' in parsed_action:
+            multi_round_analysis = parsed_action['multi_round_analysis']
+        
+        analysis_result = {
+            'parsed_action': parsed_action,
+            'pyautogui_code': pyautogui_code,
+            'confidence_score': confidence_score,
+            'ai_response': ai_response
+        }
+        
+        # 如果有多轮分析信息，添加到结果中
+        if multi_round_analysis:
+            analysis_result['multi_round_analysis'] = multi_round_analysis
+        
+        log = AnalysisLog(
+            user_id=user_id,
+            user_instruction=user_instruction,
+            analysis_result_json=json.dumps(analysis_result),
+            target_resolution=target_resolution
+        )
+        
+        return AnalysisLogDAO.add_analysis_log(log)
 
 class TaskStepDAO(BaseDAO):
     """任务步骤数据访问对象"""
@@ -232,9 +281,11 @@ class TaskStepDAO(BaseDAO):
         with db_manager.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO task_steps (task_id, step_sequence, step_type, step_description, status)
-                VALUES (?, ?, ?, ?, ?)
-            """, (step.task_id, step.step_sequence, step.step_type, step.step_description, step.status))
+                INSERT INTO task_steps (task_id, step_sequence, step_type, step_description, 
+                                      ai_analysis_id, execution_code, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (step.task_id, step.step_sequence, step.step_type, step.step_description,
+                 getattr(step, 'ai_analysis_id', None), getattr(step, 'execution_code', None), step.status))
             step_id = cursor.lastrowid
             conn.commit()
             return step_id

@@ -12,9 +12,15 @@
     }
     .history-table th, .history-table td {
         border: 1px solid #ddd;
-        padding: 12px;
+        padding: 8px;
         text-align: left;
         word-wrap: break-word;
+        vertical-align: middle;
+    }
+    .history-table td:nth-child(3), 
+    .history-table td:nth-child(4) {
+        text-align: center;
+        padding: 4px;
     }
     .history-table th {
         background-color: #f8f9fa;
@@ -24,15 +30,18 @@
         background-color: #f1f1f1;
     }
     .preview-img {
-        max-width: 150px;
+        max-width: 80px;
+        max-height: 60px;
         border-radius: 4px;
         cursor: pointer;
         transition: transform 0.2s;
+        object-fit: cover;
     }
     .preview-img:hover {
-        transform: scale(2.5);
+        transform: scale(3);
         position: relative;
         z-index: 10;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .pagination {
         margin-top: 20px;
@@ -79,11 +88,11 @@
         <div style="overflow-x: auto;">
             <table class="history-table">
                 <colgroup>
-                    <col style="width: 15%;">
-                    <col style="width: 25%;">
-                    <col style="width: 15%;">
-                    <col style="width: 15%;">
+                    <col style="width: 18%;">
                     <col style="width: 30%;">
+                    <col style="width: 12%;">
+                    <col style="width: 12%;">
+                    <col style="width: 28%;">
                 </colgroup>
                 <thead>
                     <tr>

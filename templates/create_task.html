@@ -1,89 +1,942 @@
 {% extends 'base.html' %}
-{% block title %}创建新任务{% endblock %}
+{% block title %}创建新任务 - Trustee{% endblock %}
 
-{% block header %}
-<div class="bg-blue-600 p-6">
-    <div class="flex items-center">
-        <a href="{{ url_for('task_list') }}" class="mr-2">
-            <span class="material-icons text-white">arrow_back</span>
-        </a>
-        <h1 class="text-xl font-bold text-white">创建新任务</h1>
-    </div>
-</div>
+{% block extra_head %}
+<style>
+    .create-task-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .task-form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    
+    .form-section {
+        margin-bottom: 25px;
+    }
+    
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: border-color 0.3s ease;
+    }
+    
+    .form-input:focus {
+        outline: none;
+        border-color: #2196F3;
+    }
+    
+    .form-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 100px;
+        transition: border-color 0.3s ease;
+    }
+    
+    .form-textarea:focus {
+        outline: none;
+        border-color: #2196F3;
+    }
+    
+    .device-selection {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 10px;
+    }
+    
+    .device-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 15px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .device-card.selected {
+        border-color: #2196F3;
+        background: #f3f8ff;
+    }
+    
+    .device-card:hover {
+        border-color: #2196F3;
+    }
+    
+    .device-name {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .device-info {
+        font-size: 12px;
+        color: #666;
+    }
+    
+    .status-online {
+        color: #4CAF50;
+    }
+    
+    .status-offline {
+        color: #f44336;
+    }
+    
+    .ai-analysis-section {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 25px;
+        margin: 20px 0;
+    }
+    
+    .ai-section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 15px;
+    }
+    
+    .screenshot-preview {
+        max-width: 300px;
+        max-height: 200px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        margin: 15px 0;
+    }
+    
+    .ai-steps-container {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+    }
+    
+    .step-item {
+        background: rgba(255,255,255,0.15);
+        border-radius: 6px;
+        padding: 12px;
+        margin: 10px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .step-number {
+        background: rgba(255,255,255,0.3);
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+    
+    .step-description {
+        flex: 1;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(33, 150, 243, 0.3);
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+    }
+    
+    .btn-success:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+    }
+    
+    .btn-secondary {
+        background: #9E9E9E;
+        color: white;
+    }
+    
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .loading-content {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        text-align: center;
+        max-width: 400px;
+    }
+    
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #e0e0e0;
+        border-top: 4px solid #2196F3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .success-message {
+        background: #e8f5e8;
+        color: #2e7d32;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        display: none;
+    }
+    
+    .error-message {
+        background: #ffebee;
+        color: #c62828;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        display: none;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="p-4">
-    <form action="#" method="post"> <!-- Add actual action later -->
-        <div class="space-y-4">
+<div class="create-task-container">
+    <div class="page-header">
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <a href="/tasks" style="color: #666; text-decoration: none;">
+                <i class="material-icons">arrow_back</i>
+            </a>
             <div>
-                <label for="task-name" class="block text-sm font-medium text-gray-700 mb-1">任务名称</label>
-                <input type="text" id="task-name" name="task_name" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="输入任务名称">
+                <h1><i class="material-icons">add_task</i> 创建新任务</h1>
+                <p>输入任务描述，AI会自动分析屏幕并生成执行步骤</p>
             </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">任务类型</label>
-                <div class="grid grid-cols-2 gap-3">
-                    <label class="border border-blue-500 bg-blue-50 p-3 rounded-lg flex flex-col items-center cursor-pointer">
-                        <input type="radio" name="task_type" value="timed" class="hidden peer" checked>
-                        <span class="material-icons text-blue-600 mb-1">schedule</span>
-                        <span class="text-sm peer-checked:font-semibold">定时任务</span>
-                    </label>
-                    <label class="border border-gray-300 p-3 rounded-lg flex flex-col items-center cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-50">
-                        <input type="radio" name="task_type" value="periodic" class="hidden peer">
-                        <span class="material-icons text-gray-600 mb-1 peer-checked:text-blue-600">autorenew</span>
-                        <span class="text-sm peer-checked:font-semibold">周期任务</span>
-                    </label>
-                    <label class="border border-gray-300 p-3 rounded-lg flex flex-col items-center cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-50">
-                        <input type="radio" name="task_type" value="script" class="hidden peer">
-                        <span class="material-icons text-gray-600 mb-1 peer-checked:text-blue-600">code</span>
-                        <span class="text-sm peer-checked:font-semibold">脚本任务</span>
-                    </label>
-                    <label class="border border-gray-300 p-3 rounded-lg flex flex-col items-center cursor-pointer peer-checked:border-blue-500 peer-checked:bg-blue-50">
-                        <input type="radio" name="task_type" value="api" class="hidden peer">
-                        <span class="material-icons text-gray-600 mb-1 peer-checked:text-blue-600">api</span>
-                        <span class="text-sm peer-checked:font-semibold">API调用</span>
-                    </label>
-                </div>
+        </div>
+    </div>
+
+    <div class="task-form-card">
+        <form id="createTaskForm">
+            <div class="form-section">
+                <label class="form-label" for="taskName">
+                    <i class="material-icons" style="vertical-align: middle; margin-right: 5px;">title</i>
+                    任务名称
+                </label>
+                <input type="text" id="taskName" class="form-input" placeholder="例如：登录系统、发送邮件、数据导出等" required>
             </div>
-            
-            <div>
-                <label for="task-date" class="block text-sm font-medium text-gray-700 mb-1">执行时间</label>
-                <div class="flex space-x-3">
-                    <input type="date" id="task-date" name="task_date" class="flex-1 p-3 border border-gray-300 rounded-lg">
-                    <input type="time" id="task-time" name="task_time" class="flex-1 p-3 border border-gray-300 rounded-lg">
-                </div>
+
+            <div class="form-section">
+                <label class="form-label" for="taskDescription">
+                    <i class="material-icons" style="vertical-align: middle; margin-right: 5px;">description</i>
+                    详细描述 (告诉AI你想做什么)
+                </label>
+                <textarea id="taskDescription" class="form-textarea" placeholder="请详细描述你想要自动化的操作，例如：&#10;• 点击登录按钮，输入用户名和密码&#10;• 在搜索框中输入关键词并点击搜索&#10;• 下载页面中的文件&#10;AI会根据当前屏幕截图分析并生成具体的执行步骤" required></textarea>
             </div>
-            
-            <div>
-                <label for="task-description" class="block text-sm font-medium text-gray-700 mb-1">任务描述</label>
-                <textarea id="task-description" name="task_description" class="w-full p-3 border border-gray-300 rounded-lg h-20" placeholder="输入任务描述或指令"></textarea>
-            </div>
-            
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">执行参数</label>
-                <div class="p-3 border border-gray-300 rounded-lg space-y-3">
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-700">关闭所有应用</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="param_close_apps" value="true" class="sr-only peer">
-                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        <span class="text-sm text-gray-700">执行前提醒</span>
-                        <label class="relative inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="param_notify" value="true" class="sr-only peer" checked>
-                            <div class="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
+
+            <div class="form-section">
+                <label class="form-label">
+                    <i class="material-icons" style="vertical-align: middle; margin-right: 5px;">devices</i>
+                    选择执行设备
+                </label>
+                <div id="deviceSelection" class="device-selection">
+                    <div class="loading" style="text-align: center; padding: 20px; color: #666;">
+                        正在加载设备列表...
                     </div>
                 </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="ai-analysis-section" id="aiAnalysisSection" style="display: none;">
+        <div class="ai-section-title">
+            <i class="material-icons">psychology</i>
+            <span>AI分析结果</span>
+        </div>
+        
+        <div id="screenshotContainer" style="text-align: center;">
+            <p><i class="material-icons">camera_alt</i> 当前屏幕截图</p>
+            <img id="screenshotPreview" class="screenshot-preview" alt="屏幕截图">
+        </div>
+        
+        <div class="ai-steps-container">
+            <h4 style="margin: 0 0 15px 0;"><i class="material-icons">list</i> 生成的执行步骤</h4>
+            <div id="stepsContainer">
+                <!-- 步骤将在这里动态生成 -->
             </div>
         </div>
         
-        <div class="mt-8">
-            <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium">创建任务</button>
+        <div id="multiRoundDetails" class="multi-round-details" style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 20px; margin: 15px 0; display: none;">
+            <h4 style="margin: 0 0 15px 0;"><i class="material-icons">psychology</i> 详细思考过程</h4>
+            <div id="roundsContainer">
+                <!-- 多轮思考详情将在这里显示 -->
+            </div>
         </div>
-    </form>
+        
+        <div id="codePreview" style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin: 15px 0; font-family: monospace; font-size: 12px; line-height: 1.4; white-space: pre-wrap; display: none;">
+            <!-- AI生成的代码将显示在这里 -->
+        </div>
+    </div>
+
+    <div class="success-message" id="successMessage">
+        <i class="material-icons" style="vertical-align: middle; margin-right: 8px;">check_circle</i>
+        <span id="successText"></span>
+    </div>
+
+    <div class="error-message" id="errorMessage">
+        <i class="material-icons" style="vertical-align: middle; margin-right: 8px;">error</i>
+        <span id="errorText"></span>
+    </div>
+
+    <div class="action-buttons">
+        <button type="button" class="btn btn-primary" onclick="startAIAnalysis()">
+            <i class="material-icons">psychology</i>
+            开始AI分析
+        </button>
+        
+        <button type="button" class="btn btn-success" onclick="createTask()" id="createTaskBtn" style="display: none;">
+            <i class="material-icons">save</i>
+            创建任务
+        </button>
+        
+        <button type="button" class="btn btn-secondary" onclick="window.location.href='/tasks'">
+            <i class="material-icons">cancel</i>
+            取消
+        </button>
+    </div>
 </div>
+
+<!-- 加载覆盖层 -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <h3 id="loadingTitle">正在分析...</h3>
+        <p id="loadingMessage">AI正在分析您的屏幕并生成执行步骤，请稍候...</p>
+    </div>
+</div>
+
+<script>
+let currentAnalysisResult = null;
+let selectedDeviceId = null;
+let availableDevices = [];
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadDevices();
+});
+
+// 加载设备列表
+async function loadDevices() {
+    try {
+        const response = await fetch('/api/devices');
+        const result = await response.json();
+        
+        if (result.success) {
+            availableDevices = result.devices;
+            renderDevices();
+        } else {
+            showError('加载设备列表失败');
+        }
+    } catch (error) {
+        console.error('加载设备错误:', error);
+        showError('网络错误，无法加载设备列表');
+    }
+}
+
+// 渲染设备列表
+function renderDevices() {
+    const container = document.getElementById('deviceSelection');
+    
+    if (availableDevices.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #666;">
+                <i class="material-icons" style="font-size: 48px; margin-bottom: 10px;">devices_off</i>
+                <p>暂无可用设备</p>
+                <a href="/devices" style="color: #2196F3;">去添加设备</a>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = availableDevices.map(device => `
+        <div class="device-card" onclick="selectDevice(${device.device_id})" data-device-id="${device.device_id}">
+            <div class="device-name">${device.device_name}</div>
+            <div class="device-info">
+                <span class="status-${device.status}">${device.status === 'online' ? '在线' : '离线'}</span>
+                <br>
+                ${device.device_ip || '本地设备'}
+            </div>
+        </div>
+    `).join('');
+    
+    // 默认选择第一个在线设备
+    const onlineDevice = availableDevices.find(d => d.status === 'online');
+    if (onlineDevice) {
+        selectDevice(onlineDevice.device_id);
+    }
+}
+
+// 选择设备
+function selectDevice(deviceId) {
+    selectedDeviceId = deviceId;
+    
+    // 更新视觉状态
+    document.querySelectorAll('.device-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    const selectedCard = document.querySelector(`[data-device-id="${deviceId}"]`);
+    if (selectedCard) {
+        selectedCard.classList.add('selected');
+    }
+}
+
+// 开始AI分析
+async function startAIAnalysis() {
+    const taskName = document.getElementById('taskName').value.trim();
+    const taskDescription = document.getElementById('taskDescription').value.trim();
+    
+    if (!taskName) {
+        showError('请输入任务名称');
+        return;
+    }
+    
+    if (!taskDescription) {
+        showError('请输入任务描述');
+        return;
+    }
+    
+    if (!selectedDeviceId) {
+        showError('请选择执行设备');
+        return;
+    }
+    
+    showLoading('正在截图...', '正在捕获当前屏幕，请保持界面状态...');
+    
+    try {
+        // 第1步：自动截图
+        const screenshotResponse = await fetch('/api/screenshot/capture', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ delay: 1000 })
+        });
+        
+        const screenshotResult = await screenshotResponse.json();
+        
+        if (!screenshotResult.success) {
+            throw new Error('截图失败: ' + screenshotResult.message);
+        }
+        
+        // 第2步：多轮AI分析和思考
+        const finalAnalysisResult = await performMultiRoundAnalysis(screenshotResult, taskDescription);
+        
+        // 保存分析结果
+        currentAnalysisResult = finalAnalysisResult;
+        
+        // 显示分析结果
+        displayAnalysisResult(finalAnalysisResult, screenshotResult.screenshot_url);
+        
+        hideLoading();
+        showSuccess('AI多轮分析完成！已生成详细执行步骤');
+        
+    } catch (error) {
+        console.error('AI分析错误:', error);
+        hideLoading();
+        showError('AI分析失败: ' + error.message);
+    }
+}
+
+// 执行多轮AI分析
+async function performMultiRoundAnalysis(screenshotResult, taskDescription) {
+    const screenshotBlob = await fetch(screenshotResult.screenshot_url).then(r => r.blob());
+    const analysisRounds = [];
+    let cumulativeThoughts = [];
+    
+    // 第1轮：初步分析
+    updateLoading('AI第1轮分析...', '正在进行初步屏幕理解和任务分解...');
+    const round1Result = await callAIAnalysis(screenshotBlob, screenshotResult.filename, 
+        `请仔细观察这个屏幕截图，我想要执行的任务是：${taskDescription}。
+        
+        请你先进行初步分析：
+        1. 描述你在屏幕上看到了什么界面元素
+        2. 分析要完成这个任务可能需要哪些步骤
+        3. 识别关键的交互元素（按钮、输入框、链接等）
+        4. 提出你的初步执行方案
+        
+        这是第1轮分析，请详细思考。`);
+    
+    if (round1Result.success) {
+        analysisRounds.push({
+            round: 1,
+            purpose: '初步分析',
+            result: round1Result
+        });
+        cumulativeThoughts.push(round1Result.parsed_action?.thought || '');
+    }
+    
+    // 第2轮：深度分析和优化
+    updateLoading('AI第2轮分析...', '正在进行深度分析和方案优化...');
+    const round2Result = await callAIAnalysis(screenshotBlob, screenshotResult.filename,
+        `基于第1轮分析的结果，现在进行第2轮深度分析。
+        
+        第1轮的思考结果：${cumulativeThoughts.join(' ')}
+        
+        任务目标：${taskDescription}
+        
+        请在第1轮分析基础上：
+        1. 验证和优化执行方案
+        2. 考虑可能的异常情况和备选方案
+        3. 细化每个步骤的具体操作
+        4. 确认坐标定位的准确性
+        5. 评估执行成功的可能性
+        
+        请给出更加精确和可靠的执行方案。`);
+    
+    if (round2Result.success) {
+        analysisRounds.push({
+            round: 2,
+            purpose: '深度分析',
+            result: round2Result
+        });
+        cumulativeThoughts.push(round2Result.parsed_action?.thought || '');
+    }
+    
+    // 第3轮：最终确认和代码生成
+    updateLoading('AI第3轮分析...', '正在进行最终确认和代码生成...');
+    const round3Result = await callAIAnalysis(screenshotBlob, screenshotResult.filename,
+        `这是最终的第3轮分析。请综合前两轮的分析结果：
+        
+        第1轮分析：${analysisRounds[0]?.result?.parsed_action?.thought || ''}
+        第2轮分析：${analysisRounds[1]?.result?.parsed_action?.thought || ''}
+        
+        任务目标：${taskDescription}
+        
+        现在请：
+        1. 综合前两轮的分析，确定最优执行方案
+        2. 生成精确的PyAutoGUI代码
+        3. 确保坐标定位准确
+        4. 添加必要的等待和验证机制
+        5. 提供清晰的步骤说明
+        
+        这是最终版本，请确保代码的准确性和可靠性。`);
+    
+    if (round3Result.success) {
+        analysisRounds.push({
+            round: 3,
+            purpose: '最终确认',
+            result: round3Result
+        });
+        cumulativeThoughts.push(round3Result.parsed_action?.thought || '');
+    }
+    
+    // 整合所有轮次的分析结果
+    const finalResult = round3Result.success ? round3Result : 
+                       (round2Result.success ? round2Result : round1Result);
+    
+    // 增强最终结果，包含多轮思考过程
+    if (finalResult.success) {
+        finalResult.multi_round_analysis = {
+            total_rounds: analysisRounds.length,
+            rounds: analysisRounds,
+            cumulative_thoughts: cumulativeThoughts,
+            final_confidence: calculateConfidence(analysisRounds)
+        };
+        
+        // 增强思考过程描述
+        if (finalResult.parsed_action) {
+            finalResult.parsed_action.detailed_thought = cumulativeThoughts.join('\n\n--- 下一轮思考 ---\n\n');
+        }
+    }
+    
+    return finalResult;
+}
+
+// 调用单次AI分析
+async function callAIAnalysis(screenshotBlob, filename, instruction) {
+    const formData = new FormData();
+    formData.append('screenshot', screenshotBlob, filename);
+    formData.append('instruction', instruction);
+    formData.append('target_resolution', 'auto');
+    
+    const response = await fetch('/api/ai/analyze', {
+        method: 'POST',
+        body: formData
+    });
+    
+    return await response.json();
+}
+
+// 计算综合置信度
+function calculateConfidence(rounds) {
+    if (rounds.length === 0) return 0.5;
+    
+    const confidences = rounds.map(r => r.result?.confidence_score || 0.5);
+    const avgConfidence = confidences.reduce((a, b) => a + b, 0) / confidences.length;
+    
+    // 多轮分析会提高置信度
+    const roundBonus = Math.min(0.2, rounds.length * 0.05);
+    
+    return Math.min(1.0, avgConfidence + roundBonus);
+}
+
+// 显示多轮思考详情
+function displayMultiRoundDetails(multiRoundAnalysis) {
+    const detailsSection = document.getElementById('multiRoundDetails');
+    const roundsContainer = document.getElementById('roundsContainer');
+    
+    if (!detailsSection || !roundsContainer) return;
+    
+    // 生成每轮分析的详细展示
+    roundsContainer.innerHTML = multiRoundAnalysis.rounds.map((round, index) => {
+        const action = round.result?.parsed_action || {};
+        const confidence = round.result?.confidence_score || 0;
+        
+        return `
+            <div style="background: rgba(255,255,255,0.1); border-radius: 6px; padding: 15px; margin: 10px 0; border-left: 4px solid ${getRoundColor(round.round)};">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <div style="background: ${getRoundColor(round.round)}; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold;">
+                        ${round.round}
+                    </div>
+                    <div>
+                        <h5 style="margin: 0; color: white;">${round.purpose}</h5>
+                        <small style="color: rgba(255,255,255,0.7);">置信度: ${Math.round(confidence * 100)}%</small>
+                    </div>
+                </div>
+                
+                <div style="background: rgba(0,0,0,0.2); border-radius: 4px; padding: 12px; margin: 10px 0;">
+                    <strong style="color: white;">AI思考过程:</strong>
+                    <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); line-height: 1.5; font-size: 13px;">
+                        ${action.thought || '无详细思考记录'}
+                    </p>
+                </div>
+                
+                ${action.action ? `
+                    <div style="background: rgba(255,255,255,0.05); border-radius: 4px; padding: 10px; margin: 10px 0;">
+                        <strong style="color: white;">识别操作:</strong>
+                        <div style="margin-top: 5px; color: rgba(255,255,255,0.9); font-size: 13px;">
+                            <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; margin-right: 8px;">
+                                ${getActionIcon(action.action)} ${getActionName(action.action)}
+                            </span>
+                            ${action.content ? `<span style="color: rgba(255,255,255,0.7);">内容: "${action.content}"</span>` : ''}
+                            ${action.start_box ? `<span style="color: rgba(255,255,255,0.7);">坐标: (${action.start_box[0]}, ${action.start_box[1]})</span>` : ''}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${round.result?.pyautogui_code && round.result.pyautogui_code !== '# 无可执行的操作' ? `
+                    <details style="margin-top: 10px;">
+                        <summary style="color: white; cursor: pointer; font-size: 13px;">查看生成的代码</summary>
+                        <pre style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; margin: 5px 0; color: rgba(255,255,255,0.8); font-size: 11px; line-height: 1.4; overflow-x: auto;">${round.result.pyautogui_code}</pre>
+                    </details>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    // 添加综合分析摘要
+    roundsContainer.innerHTML += `
+        <div style="background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%); border-radius: 8px; padding: 20px; margin: 20px 0; border: 2px solid rgba(255,255,255,0.2);">
+            <h5 style="margin: 0 0 15px 0; color: white; display: flex; align-items: center; gap: 8px;">
+                <i class="material-icons">analytics</i>
+                综合分析摘要
+            </h5>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #4CAF50;">${multiRoundAnalysis.total_rounds}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7);">分析轮数</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #2196F3;">${Math.round(multiRoundAnalysis.final_confidence * 100)}%</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7);">综合置信度</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 24px; font-weight: bold; color: #FF9800;">${multiRoundAnalysis.cumulative_thoughts.length}</div>
+                    <div style="font-size: 12px; color: rgba(255,255,255,0.7);">思考记录</div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 显示详情区域
+    detailsSection.style.display = 'block';
+}
+
+// 获取轮次颜色
+function getRoundColor(round) {
+    const colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0', '#F44336'];
+    return colors[(round - 1) % colors.length];
+}
+
+// 获取操作图标
+function getActionIcon(action) {
+    const icons = {
+        'click': '🖱️',
+        'type': '⌨️',
+        'scroll': '📜',
+        'key': '🔑',
+        'wait': '⏱️'
+    };
+    return icons[action] || '🤖';
+}
+
+// 获取操作名称
+function getActionName(action) {
+    const names = {
+        'click': '点击',
+        'type': '输入',
+        'scroll': '滚动',
+        'key': '按键',
+        'wait': '等待'
+    };
+    return names[action] || '未知操作';
+}
+
+// 显示分析结果
+function displayAnalysisResult(result, screenshotUrl) {
+    const section = document.getElementById('aiAnalysisSection');
+    const preview = document.getElementById('screenshotPreview');
+    const stepsContainer = document.getElementById('stepsContainer');
+    const codePreview = document.getElementById('codePreview');
+    const createBtn = document.getElementById('createTaskBtn');
+    
+    // 显示截图
+    preview.src = screenshotUrl;
+    
+    // 生成步骤列表
+    const steps = generateStepsFromAnalysis(result);
+    stepsContainer.innerHTML = steps.map((step, index) => `
+        <div class="step-item">
+            <div class="step-number">${index + 1}</div>
+            <div class="step-description">${step}</div>
+        </div>
+    `).join('');
+    
+    // 显示代码预览（可选）
+    if (result.pyautogui_code) {
+        codePreview.textContent = result.pyautogui_code;
+        codePreview.style.display = 'block';
+    }
+    
+    // 显示多轮思考详情
+    if (result.multi_round_analysis) {
+        displayMultiRoundDetails(result.multi_round_analysis);
+    }
+    
+    // 显示分析结果区域和创建按钮
+    section.style.display = 'block';
+    createBtn.style.display = 'inline-flex';
+    
+    // 滚动到结果区域
+    section.scrollIntoView({ behavior: 'smooth' });
+}
+
+// 从AI分析结果生成步骤描述
+function generateStepsFromAnalysis(result) {
+    const steps = [];
+    const action = result.parsed_action;
+    
+    // 如果有多轮分析结果，显示详细的思考过程
+    if (result.multi_round_analysis) {
+        const analysis = result.multi_round_analysis;
+        
+        steps.push(`🧠 AI多轮思考 (共${analysis.total_rounds}轮分析)`);
+        steps.push(`📊 综合置信度: ${Math.round(analysis.final_confidence * 100)}%`);
+        
+        // 显示每轮分析的要点
+        analysis.rounds.forEach((round, index) => {
+            const roundAction = round.result?.parsed_action;
+            if (roundAction?.thought) {
+                steps.push(`💭 第${round.round}轮 (${round.purpose}): ${roundAction.thought.substring(0, 100)}${roundAction.thought.length > 100 ? '...' : ''}`);
+            }
+        });
+        
+        steps.push('--- 最终执行方案 ---');
+    } else {
+        // 单轮分析的思考过程
+        if (action.thought) {
+            steps.push(`💭 AI分析思路: ${action.thought}`);
+        }
+    }
+    
+    // 根据操作类型生成描述
+    if (action.action === 'click') {
+        const coords = action.start_box;
+        steps.push(`🖱️ 点击操作: 在坐标 (${coords[0]}, ${coords[1]}) 位置执行鼠标点击`);
+    } else if (action.action === 'type') {
+        steps.push(`⌨️ 输入操作: 输入文本内容 "${action.content}"`);
+        if (action.start_box) {
+            const coords = action.start_box;
+            steps.push(`📍 输入位置: 在坐标 (${coords[0]}, ${coords[1]}) 的输入框中`);
+        }
+    } else if (action.action === 'scroll') {
+        steps.push('🖱️ 滚动操作: 在当前页面执行滚动操作');
+    } else if (action.action === 'key') {
+        steps.push(`⌨️ 按键操作: 按下 ${action.content} 键`);
+    }
+    
+    // 添加执行代码说明
+    if (result.pyautogui_code && result.pyautogui_code !== '# 无可执行的操作') {
+        steps.push('⚙️ 代码执行: 使用PyAutoGUI库执行自动化操作');
+        steps.push('📐 坐标适配: 根据目标设备分辨率自动调整坐标位置');
+    }
+    
+    // 如果没有具体步骤，添加默认描述
+    if (steps.length === 0) {
+        steps.push('🤖 AI将根据截图内容执行相应的自动化操作');
+    }
+    
+    return steps;
+}
+
+// 创建任务
+async function createTask() {
+    if (!currentAnalysisResult) {
+        showError('请先完成AI分析');
+        return;
+    }
+    
+    const taskName = document.getElementById('taskName').value.trim();
+    const taskDescription = document.getElementById('taskDescription').value.trim();
+    
+    showLoading('正在创建任务...', '正在保存任务和AI分析结果...');
+    
+    try {
+        const taskData = {
+            task_name: taskName,
+            natural_language_input: taskDescription,
+            device_id: selectedDeviceId,
+            ai_analysis: currentAnalysisResult,
+            task_type: 'ai_automation'
+        };
+        
+        const response = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(taskData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            hideLoading();
+            showSuccess('任务创建成功！即将跳转到任务列表...');
+            
+            setTimeout(() => {
+                window.location.href = '/tasks';
+            }, 2000);
+        } else {
+            throw new Error(result.message || '创建任务失败');
+        }
+        
+    } catch (error) {
+        console.error('创建任务错误:', error);
+        hideLoading();
+        showError('创建任务失败: ' + error.message);
+    }
+}
+
+// 工具函数
+function showLoading(title, message) {
+    document.getElementById('loadingTitle').textContent = title;
+    document.getElementById('loadingMessage').textContent = message;
+    document.getElementById('loadingOverlay').style.display = 'flex';
+}
+
+function updateLoading(title, message) {
+    document.getElementById('loadingTitle').textContent = title;
+    document.getElementById('loadingMessage').textContent = message;
+}
+
+function hideLoading() {
+    document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+function showSuccess(message) {
+    const element = document.getElementById('successMessage');
+    document.getElementById('successText').textContent = message;
+    element.style.display = 'block';
+    
+    setTimeout(() => {
+        element.style.display = 'none';
+    }, 5000);
+}
+
+function showError(message) {
+    const element = document.getElementById('errorMessage');
+    document.getElementById('errorText').textContent = message;
+    element.style.display = 'block';
+    
+    setTimeout(() => {
+        element.style.display = 'none';
+    }, 5000);
+}
+</script>
 {% endblock %} 

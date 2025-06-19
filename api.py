@@ -278,6 +278,105 @@ def update_device(device_id):
         logger.error(f"更新设备错误: {str(e)}")
         return jsonify({'success': False, 'message': '更新设备失败'}), 500
 
+@app.route('/api/devices/test-connection', methods=['POST'])
+def test_device_connection():
+    """测试设备连接"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': '请先登录'}), 401
+        
+        data = request.get_json()
+        device_id = data.get('device_id')
+        
+        if not device_id:
+            return jsonify({'success': False, 'message': '设备ID不能为空'}), 400
+        
+        # 验证设备所有权
+        device = DeviceDAO.get_by_id(device_id)
+        if not device or device.owner_user_id != user_id:
+            return jsonify({'success': False, 'message': '设备不存在或无权限访问'}), 404
+        
+        # 测试网络连接
+        import subprocess
+        import time
+        
+        start_time = time.time()
+        
+        try:
+            # 如果是本地设备
+            if not device.device_ip or device.device_ip in ['localhost', '127.0.0.1', '0.0.0.0', '本机']:
+                # 本地设备始终在线
+                latency = int((time.time() - start_time) * 1000)
+                
+                # 更新设备状态
+                device.status = 'online'
+                device.last_seen = datetime.now()
+                DeviceDAO.update(device)
+                
+                return jsonify({
+                    'success': True,
+                    'message': '本地设备连接正常',
+                    'latency': latency,
+                    'device_type': '本地设备'
+                })
+            
+            # 对于远程设备，使用ping测试连接
+            else:
+                import platform
+                system = platform.system().lower()
+                
+                if system == "windows":
+                    cmd = ["ping", "-n", "1", "-w", "3000", device.device_ip]
+                else:
+                    cmd = ["ping", "-c", "1", "-W", "3", device.device_ip]
+                
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                latency = int((time.time() - start_time) * 1000)
+                
+                if result.returncode == 0:
+                    # 连接成功，更新设备状态
+                    device.status = 'online'
+                    device.last_seen = datetime.now()
+                    DeviceDAO.update(device)
+                    
+                    return jsonify({
+                        'success': True,
+                        'message': f'设备 {device.device_ip} 连接正常',
+                        'latency': latency,
+                        'device_type': '远程设备'
+                    })
+                else:
+                    # 连接失败，更新设备状态
+                    device.status = 'offline'
+                    DeviceDAO.update(device)
+                    
+                    return jsonify({
+                        'success': False,
+                        'message': f'无法连接到设备 {device.device_ip}，请检查网络连接和IP地址',
+                        'latency': latency
+                    })
+                    
+        except subprocess.TimeoutExpired:
+            device.status = 'offline'
+            DeviceDAO.update(device)
+            return jsonify({
+                'success': False,
+                'message': '连接超时，设备可能离线'
+            })
+        except Exception as e:
+            logger.error(f"网络测试错误: {str(e)}")
+            device.status = 'offline'
+            DeviceDAO.update(device)
+            return jsonify({
+                'success': False,
+                'message': f'连接测试失败: {str(e)}'
+            })
+            
+    except Exception as e:
+        logger.error(f"测试设备连接错误: {str(e)}")
+        return jsonify({'success': False, 'message': '服务器错误'}), 500
+
 # ==================== 任务管理API ====================
 
 @app.route('/api/tasks', methods=['GET'])
@@ -337,13 +436,58 @@ def create_task():
         
         data = request.get_json()
         
+        # 检查是否包含AI分析结果
+        ai_analysis = data.get('ai_analysis')
+        task_type = data.get('task_type', 'manual')
+        
         # 创建任务
         task_id = workflow_service.create_task(
             user_id=user_id,
             task_name=data.get('task_name'),
             natural_language_input=data.get('natural_language_input'),
-            device_id=data.get('device_id')
+            device_id=data.get('device_id'),
+            task_type=task_type
         )
+        
+        # 如果有AI分析结果，创建任务步骤
+        if ai_analysis and task_type == 'ai_automation':
+            # 保存AI分析记录
+            # 如果有多轮分析，使用最终的置信度
+            final_confidence = ai_analysis.get('confidence_score', 0.8)
+            if 'multi_round_analysis' in ai_analysis:
+                final_confidence = ai_analysis['multi_round_analysis'].get('final_confidence', final_confidence)
+            
+            analysis_id = AnalysisLogDAO.create_analysis_log(
+                user_id=user_id,
+                screenshot_id=None,  # 可以后续关联
+                user_instruction=data.get('natural_language_input'),
+                ai_response=ai_analysis.get('ai_response', ''),
+                confidence_score=final_confidence,
+                parsed_action=ai_analysis.get('parsed_action', {}),
+                pyautogui_code=ai_analysis.get('pyautogui_code', ''),
+                target_resolution=ai_analysis.get('target_resolution', 'auto')
+            )
+            
+            # 创建任务步骤，包含完整的AI分析信息
+            step_description = f"AI自动化执行: {data.get('natural_language_input')}"
+            if 'multi_round_analysis' in ai_analysis:
+                multi_round = ai_analysis['multi_round_analysis']
+                step_description += f" (经过{multi_round.get('total_rounds', 1)}轮AI分析)"
+            
+            workflow_service.create_task_step(
+                task_id=task_id,
+                step_sequence=1,
+                step_type='ai_automation',
+                step_description=step_description,
+                ai_analysis_id=analysis_id,
+                execution_code=ai_analysis.get('pyautogui_code', '')
+            )
+            
+            # 更新任务总步骤数
+            task = TaskDAO.get_by_id(task_id)
+            if task:
+                task.total_steps = 1
+                TaskDAO.update(task)
         
         return jsonify({
             'success': True,
@@ -609,6 +753,168 @@ def get_screenshot(filename):
     """获取截图文件（包括原始截图和标注后的图片）"""
     return send_from_directory(app.config.get('SCREENSHOTS_FOLDER', 'screenshots'), filename)
 
+@app.route('/api/remote/screenshot', methods=['POST'])
+def capture_remote_screenshot():
+    """远程设备截图接口"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'message': '请先登录'}), 401
+        
+        data = request.get_json()
+        device_id = data.get('device_id')
+        device_ip = data.get('device_ip')
+        
+        if not device_id:
+            return jsonify({'success': False, 'message': '设备ID不能为空'}), 400
+        
+        # 验证设备所有权
+        device = DeviceDAO.get_by_id(device_id)
+        if not device or device.owner_user_id != user_id:
+            return jsonify({'success': False, 'message': '无权访问此设备'}), 403
+        
+        # 检查设备是否在线
+        if device.status != 'online':
+            return jsonify({'success': False, 'message': '设备离线，无法截图'}), 400
+        
+        # 如果是本地设备(没有IP或IP是本机)，直接截图
+        if not device_ip or device_ip in ['localhost', '127.0.0.1', '0.0.0.0', '本机']:
+            # 使用现有的截图功能
+            from utils.screenshot_utils import capture_screen_with_fallback, generate_screenshot_filename
+            import time
+            
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = generate_screenshot_filename(f"remote_{device_id}")
+            filepath = os.path.join(workflow_service.screenshot_dir, filename)
+            
+            # 使用带备用方案的截图功能
+            success, screenshot, method_used = capture_screen_with_fallback(filepath)
+            
+            if not success:
+                raise Exception("截图失败，请检查系统权限")
+            
+            # 获取分辨率信息
+            resolution = f"{screenshot.width}x{screenshot.height}" if screenshot else "未知"
+            
+            logger.info(f"远程截图成功 - 设备: {device.device_name}, 方法: {method_used}")
+            
+            return jsonify({
+                'success': True,
+                'message': '远程截图成功',
+                'filename': filename,
+                'screenshot_url': f'/api/screenshot/{filename}',
+                'resolution': resolution,
+                'timestamp': timestamp,
+                'device_name': device.device_name,
+                'method_used': method_used
+            })
+            
+        else:
+            # 对于真正的远程设备，使用Trustee客户端协议
+            logger.info(f"尝试连接远程设备 {device_ip}")
+            
+            try:
+                import requests
+                
+                # 尝试连接Trustee客户端
+                client_url = f"http://{device_ip}:8888"
+                
+                # 先测试连接
+                try:
+                    ping_response = requests.get(f"{client_url}/api/ping", timeout=5)
+                    if ping_response.status_code != 200:
+                        raise Exception("客户端响应异常")
+                except Exception as e:
+                    logger.warning(f"Trustee客户端连接失败: {str(e)}")
+                    
+                    # 回退到本地截图演示模式
+                    from utils.screenshot_utils import capture_screen_with_fallback, generate_screenshot_filename
+                    
+                    filename = generate_screenshot_filename(f"remote_demo_{device_id}")
+                    filepath = os.path.join(workflow_service.screenshot_dir, filename)
+                    
+                    success, screenshot, method_used = capture_screen_with_fallback(filepath)
+                    
+                    if success:
+                        resolution = f"{screenshot.width}x{screenshot.height}" if screenshot else "未知"
+                        
+                        return jsonify({
+                            'success': True,
+                            'message': f'远程设备 {device_ip} 连接失败，显示本地屏幕作为演示',
+                            'filename': filename,
+                            'screenshot_url': f'/api/screenshot/{filename}',
+                            'resolution': resolution,
+                            'timestamp': datetime.now().strftime('%Y%m%d_%H%M%S'),
+                            'device_name': device.device_name,
+                            'method_used': f"本地演示({method_used})",
+                            'note': f'无法连接到 {device_ip}:8888 上的Trustee客户端，请确保目标设备已安装并运行客户端程序'
+                        })
+                    else:
+                        return jsonify({
+                            'success': False,
+                            'message': f'无法连接到远程设备 {device_ip}，且本地截图也失败'
+                        }), 500
+                
+                # 发送截图请求到客户端
+                screenshot_response = requests.post(f"{client_url}/api/screenshot", json={}, timeout=10)
+                
+                if screenshot_response.status_code == 200:
+                    result = screenshot_response.json()
+                    
+                    if result.get('success'):
+                        # 获取base64截图数据
+                        screenshot_base64 = result.get('screenshot_base64')
+                        
+                        if screenshot_base64:
+                            # 保存截图文件
+                            import base64
+                            from utils.screenshot_utils import generate_screenshot_filename
+                            
+                            filename = generate_screenshot_filename(f"remote_{device_id}")
+                            filepath = os.path.join(workflow_service.screenshot_dir, filename)
+                            
+                            # 解码并保存图片
+                            screenshot_data = base64.b64decode(screenshot_base64)
+                            with open(filepath, 'wb') as f:
+                                f.write(screenshot_data)
+                            
+                            logger.info(f"远程截图成功 - 设备: {device.device_name} ({device_ip})")
+                            
+                            return jsonify({
+                                'success': True,
+                                'message': f'远程设备 {device_ip} 截图成功',
+                                'filename': filename,
+                                'screenshot_url': f'/api/screenshot/{filename}',
+                                'resolution': result.get('resolution', '未知'),
+                                'timestamp': datetime.now().strftime('%Y%m%d_%H%M%S'),
+                                'device_name': device.device_name,
+                                'method_used': "Trustee客户端",
+                                'remote_timestamp': result.get('timestamp')
+                            })
+                        else:
+                            raise Exception("客户端返回的截图数据为空")
+                    else:
+                        raise Exception(result.get('message', '客户端截图失败'))
+                else:
+                    raise Exception(f"客户端响应错误: HTTP {screenshot_response.status_code}")
+                    
+            except requests.exceptions.RequestException as e:
+                logger.error(f"远程连接错误: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'无法连接到远程设备 {device_ip}:8888，请检查: 1) 网络连接 2) 防火墙设置 3) Trustee客户端是否运行'
+                }), 500
+            except Exception as e:
+                logger.error(f"远程截图错误: {str(e)}")
+                return jsonify({
+                    'success': False,
+                    'message': f'远程截图失败: {str(e)}'
+                }), 500
+        
+    except Exception as e:
+        logger.error(f"远程截图错误: {str(e)}")
+        return jsonify({'success': False, 'message': f'远程截图失败: {str(e)}'}), 500
+
 # ==================== 历史记录页面和API ====================
 @app.route('/history')
 def history_page():
@@ -655,7 +961,7 @@ def get_task_steps(task_id):
         steps_data = []
         
         for step in steps:
-            steps_data.append({
+            step_data = {
                 'step_id': step.step_id,
                 'step_sequence': step.step_sequence,
                 'step_type': step.step_type,
@@ -669,7 +975,31 @@ def get_task_steps(task_id):
                 'ai_analysis_id': step.ai_analysis_id,
                 'execution_id': step.execution_id,
                 'error_details': step.error_details
-            })
+            }
+            
+            # 如果有AI分析ID，获取AI分析详情
+            if hasattr(step, 'ai_analysis_id') and step.ai_analysis_id:
+                try:
+                    # 从分析日志中获取AI分析信息
+                    import json
+                    analysis_logs = AnalysisLogDAO.get_analysis_logs_paginated(1, 1000)
+                    for log in analysis_logs['logs']:
+                        if hasattr(log, 'log_id') and log.log_id == step.ai_analysis_id:
+                            if log.analysis_result_json:
+                                analysis_data = json.loads(log.analysis_result_json)
+                                step_data['ai_analysis'] = {
+                                    'parsed_action': analysis_data.get('parsed_action', {}),
+                                    'pyautogui_code': analysis_data.get('pyautogui_code', ''),
+                                    'confidence_score': analysis_data.get('confidence_score', 0),
+                                    'ai_response': analysis_data.get('ai_response', ''),
+                                    'target_resolution': log.target_resolution,
+                                    'multi_round_analysis': analysis_data.get('multi_round_analysis')  # 包含多轮分析信息
+                                }
+                            break
+                except Exception as e:
+                    logger.warning(f"获取AI分析详情失败: {str(e)}")
+            
+            steps_data.append(step_data)
         
         return jsonify({
             'success': True,
